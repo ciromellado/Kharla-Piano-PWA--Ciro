@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web VST - Korg iX300 (Con Ritmos)</title>
+    <title>Web VST - Korg iX300 (Estable)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -265,7 +265,7 @@
         let activeMidiInput = null;
         let activeMidiOutput = null;
 
-        // Motor de Ritmo Avanzado con AudioContext Timing
+        // Motor de Ritmo
         let rhythmActive = false;
         let nextNoteTime = 0.0;
         let currentStep = 0;
@@ -354,7 +354,7 @@
             updateReverbMix(parseFloat(e.target.value));
         });
 
-        // Control de Ritmo optimizado
+        // Control de Ritmo ESTABLE
         rhythmToggleBtn.addEventListener('click', () => {
             initAudioEngine();
 
@@ -362,6 +362,7 @@
             if (rhythmActive) {
                 rhythmToggleBtn.classList.add('active');
                 currentStep = 0;
+                // Iniciamos el tiempo un poco en el futuro para dar margen
                 nextNoteTime = audioCtx.currentTime + 0.05;
                 scheduler();
             } else {
@@ -377,12 +378,10 @@
             }
         });
 
-               function scheduler() {
+        function scheduler() {
             if (!rhythmActive) return;
 
-            // CORRECCIÓN: Evitar que el tiempo se quede en el pasado.
-            // Si el navegador ralentizó el setTimeout (ej. al cambiar de pestaña), 
-            // adelantamos el tiempo al presente para evitar el error InvalidStateError.
+            // CORRECCIÓN CRÍTICA: Evitar que el tiempo se quede en el pasado
             if (nextNoteTime < audioCtx.currentTime) {
                 nextNoteTime = audioCtx.currentTime;
             }
@@ -396,7 +395,7 @@
 
         function nextStepTime() {
             const secondsPerBeat = 60.0 / currentBpm;
-            nextNoteTime += 0.25 * secondsPerBeat; // 16avos (semicorcheas)
+            nextNoteTime += 0.25 * secondsPerBeat; // 16avos
             currentStep = (currentStep + 1) % 16;
         }
 
@@ -409,19 +408,8 @@
             if (pattern.hihat[step]) playDrumSound('hihat', time);
         }
 
-                    function playDrumSound(type, time) {
+        function playDrumSound(type, time) {
             if (!audioCtx) return;
-
-            // 1. Mapeo de instrumentos a notas MIDI estándar (General MIDI - Canal 10)
-            const drumNotes = {
-                'kick': 36,   // C1 ( bombo )
-                'snare': 38,  // D1 ( caja )
-                'hihat': 42   // F#1 ( hi-hat cerrado )
-            };
-
-            const note = drumNotes[type];
-            
-            // --- PARTE 1: Sonido interno del navegador (para monitoreo) ---
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -450,32 +438,11 @@
                     osc.start(time);
                     osc.stop(time + 0.04);
                 }
-            } catch (error) {
-                console.warn("Error de audio interno:", error);
-            }
-
-            // --- PARTE 2: Enviar señal MIDI al dispositivo externo (Korg iX300) ---
-            if (note && activeMidiOutput) {
-                // Calculamos cuántos milisegundos faltan para que suene ese golpe
-                const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
-                
-                setTimeout(() => {
-                    // 0x99 = Note On en Canal 10 (Percusión)
-                    // 0x89 = Note Off en Canal 10
-                    const velocity = 100; // Velocidad de la nota (1-127)
-                    
-                    // Enviar Note On
-                    activeMidiOutput.send([0x99, note, velocity]);
-                    
-                    // Enviar Note Off después de un tiempo corto (duración del golpe)
-                    const duration = type === 'hihat' ? 50 : 100; // ms
-                    setTimeout(() => {
-                        activeMidiOutput.send([0x89, note, 0]);
-                    }, duration);
-                    
-                }, delayMs);
+            } catch (e) {
+                console.warn("Error en sonido de batería:", e);
             }
         }
+
         function buildKeyboard() {
             const whiteKeyWidth = 34;
             let whiteIndex = 0;
