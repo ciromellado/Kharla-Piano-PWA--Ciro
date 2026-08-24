@@ -377,8 +377,15 @@
             }
         });
 
-        function scheduler() {
+               function scheduler() {
             if (!rhythmActive) return;
+
+            // CORRECCIÓN: Evitar que el tiempo se quede en el pasado.
+            // Si el navegador ralentizó el setTimeout (ej. al cambiar de pestaña), 
+            // adelantamos el tiempo al presente para evitar el error InvalidStateError.
+            if (nextNoteTime < audioCtx.currentTime) {
+                nextNoteTime = audioCtx.currentTime;
+            }
 
             while (nextNoteTime < audioCtx.currentTime + 0.1) {
                 scheduleStep(currentStep, nextNoteTime);
@@ -402,34 +409,41 @@
             if (pattern.hihat[step]) playDrumSound('hihat', time);
         }
 
-        function playDrumSound(type, time) {
+            function playDrumSound(type, time) {
             if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            gain.connect(mainMasterGain);
+            
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                gain.connect(mainMasterGain);
 
-            if (type === 'kick') {
-                osc.frequency.setValueAtTime(130, time);
-                osc.frequency.exponentialRampToValueAtTime(35, time + 0.1);
-                gain.gain.setValueAtTime(0.8, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-                osc.start(time);
-                osc.stop(time + 0.15);
-            } else if (type === 'snare') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(220, time);
-                osc.frequency.exponentialRampToValueAtTime(80, time + 0.08);
-                gain.gain.setValueAtTime(0.4, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-                osc.start(time);
-                osc.stop(time + 0.08);
-            } else if (type === 'hihat') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(800, time);
-                gain.gain.setValueAtTime(0.15, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-                osc.start(time);
-                osc.stop(time + 0.04);
+                if (type === 'kick') {
+                    osc.frequency.setValueAtTime(130, time);
+                    osc.frequency.exponentialRampToValueAtTime(35, time + 0.1);
+                    gain.gain.setValueAtTime(0.8, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                    osc.start(time);
+                    osc.stop(time + 0.15);
+                } else if (type === 'snare') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, time);
+                    osc.frequency.exponentialRampToValueAtTime(80, time + 0.08);
+                    gain.gain.setValueAtTime(0.4, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                    osc.start(time);
+                    osc.stop(time + 0.08);
+                } else if (type === 'hihat') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, time);
+                    gain.gain.setValueAtTime(0.15, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+                    osc.start(time);
+                    osc.stop(time + 0.04);
+                }
+            } catch (error) {
+                // Si ocurre un error de programación en el pasado, lo registramos 
+                // pero no detenemos el bucle del scheduler.
+                console.warn("Error al programar sonido de batería:", error);
             }
         }
 
