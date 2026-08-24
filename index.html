@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web VST - Korg iX300 (Funcional)</title>
+    <title>Web VST - Korg iX300 (Con Volumen)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -52,20 +52,14 @@
             border-color: rgba(76, 175, 80, 0.3);
         }
         
-        .controls-section {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: #252525;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-        }
-
         .controls-row {
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
             align-items: center;
         }
         
@@ -79,7 +73,7 @@
             color: #bbb;
             font-weight: bold;
         }
-        select, input[type="range"], input[type="number"] {
+        select, input[type="range"] {
             background: #1a1a1a;
             color: #fff;
             border: 1px solid #555;
@@ -87,28 +81,10 @@
             border-radius: 4px;
             outline: none;
             cursor: pointer;
-            min-width: 160px;
+            min-width: 140px;
         }
-        select:hover, input[type="range"]:hover, input[type="number"]:hover {
+        select:hover, input[type="range"]:hover {
             border-color: #00bcd4;
-        }
-
-        .rhythm-btn {
-            background: #2a2a2a;
-            color: #aaa;
-            border: 1px solid #555;
-            padding: 9px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-            height: 38px;
-        }
-        .rhythm-btn.active {
-            background: #e91e63;
-            color: #fff;
-            border-color: #e91e63;
-            box-shadow: 0 0 10px rgba(233,30,99,0.5);
         }
 
         .piano-wrapper {
@@ -176,65 +152,43 @@
     <div class="vst-container">
         <div class="header-panel">
             <div class="title-bar">
-                <h1>Web VST - Korg iX300</h1>
+                <h1>Web VST - Korg iX300 - Ciro</h1>
                 <div id="status">Iniciando Web MIDI...</div>
             </div>
             
-            <div class="controls-section">
-                <div class="controls-row">
-                    <div class="control-group">
-                        <label for="midi-input">Entrada MIDI (Recibe del teclado):</label>
-                        <select id="midi-input">
-                            <option value="">Buscando...</option>
-                        </select>
-                    </div>
-
-                    <div class="control-group">
-                        <label for="midi-output">Salida MIDI (Envía al teclado):</label>
-                        <select id="midi-output">
-                            <option value="">(Ninguna / Opcional)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label for="preset">Tipo de Piano:</label>
-                        <select id="preset">
-                            <option value="grand">Grand Acoustic</option>
-                            <option value="bright">Bright Piano</option>
-                            <option value="warm">Warm Piano</option>
-                            <option value="electric">Electric (Rhodes)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="control-group">
-                        <label for="volume">Volumen Master:</label>
-                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
-                    </div>
-
-                    <div class="control-group">
-                        <label for="reverb">Resonancia (Reverb):</label>
-                        <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.4">
-                    </div>
+            <div class="controls-row">
+                <div class="control-group">
+                    <label for="midi-input">Entrada MIDI USB:</label>
+                    <select id="midi-input">
+                        <option value="">Buscando entradas...</option>
+                    </select>
                 </div>
 
-                <div class="controls-row" style="border-top: 1px solid #333; padding-top: 10px;">
-                    <div class="control-group">
-                        <label for="style-select">Estilo de Ritmo:</label>
-                        <select id="style-select">
-                            <option value="pop">Pop 8-Beat</option>
-                            <option value="rock">Rock Standard</option>
-                            <option value="ballad">Balada Suave</option>
-                        </select>
-                    </div>
+                <div class="control-group">
+                    <label for="midi-output">Salida MIDI USB:</label>
+                    <select id="midi-output">
+                        <option value="">(Ninguna / Opcional)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="preset">Tipo de Piano:</label>
+                    <select id="preset">
+                        <option value="grand">Grand Acoustic</option>
+                        <option value="bright">Bright Piano</option>
+                        <option value="warm">Warm Piano</option>
+                        <option value="electric">Electric (Rhodes)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="volume">Volumen Master:</label>
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+                </div>
 
-                    <div class="control-group">
-                        <label for="tempo-input">Tempo (BPM):</label>
-                        <input type="number" id="tempo-input" min="60" max="180" value="115">
-                    </div>
-
-                    <div>
-                        <button id="rhythm-toggle" class="rhythm-btn">RITMO: START</button>
-                    </div>
+                <div class="control-group">
+                    <label for="reverb">Resonancia (Reverb):</label>
+                    <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.4">
                 </div>
             </div>
         </div>
@@ -252,43 +206,18 @@
         const volumeSlider = document.getElementById('volume');
         const midiInputSelect = document.getElementById('midi-input');
         const midiOutputSelect = document.getElementById('midi-output');
-        const styleSelect = document.getElementById('style-select');
-        const tempoInput = document.getElementById('tempo-input');
-        const rhythmToggleBtn = document.getElementById('rhythm-toggle');
 
-        const startNote = 36; 
+        const startNote = 36; // C2 (61 teclas exactas)
         const numKeys = 61;   
         const midiElements = {};
         const activeOscillators = {};
         
+        let sustainActive = false;
+        const sustainedNotes = new Set();
+
         let currentMidiAccess = null;
         let activeMidiInput = null;
         let activeMidiOutput = null;
-
-        // Motor de Ritmo
-        let rhythmActive = false;
-        let nextNoteTime = 0.0;
-        let currentStep = 0;
-        let rhythmTimerID = null;
-        let currentBpm = 115;
-
-        const rhythms = {
-            pop: {
-                kick:  [1, 0, 0, 0,  0, 0, 1, 0,  1, 0, 0, 0,  0, 0, 1, 0],
-                snare: [0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0],
-                hihat: [1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1]
-            },
-            rock: {
-                kick:  [1, 0, 0, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1, 0, 0, 0],
-                snare: [0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 1],
-                hihat: [1, 0, 1, 0,  1, 0, 1, 0,  1, 0, 1, 0,  1, 0, 1, 0]
-            },
-            ballad: {
-                kick:  [1, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 0, 0],
-                snare: [0, 0, 0, 0,  0, 0, 1, 0,  0, 0, 0, 0,  0, 0, 1, 0],
-                hihat: [1, 0, 1, 0,  1, 0, 1, 0,  1, 0, 1, 0,  1, 0, 1, 0]
-            }
-        };
 
         const noteNames = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
 
@@ -296,12 +225,7 @@
         let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
 
         function initAudioEngine() {
-            if (audioCtx) {
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                return;
-            }
+            if (audioCtx) return;
             audioCtx = new AudioContext();
 
             mainMasterGain = audioCtx.createGain();
@@ -354,97 +278,14 @@
             updateReverbMix(parseFloat(e.target.value));
         });
 
-        // Control de Ritmo CORREGIDO
-        rhythmToggleBtn.addEventListener('click', () => {
-            initAudioEngine();
-            console.log("Estado del AudioContext:", audioCtx.state);
-
-            rhythmActive = !rhythmActive;
-            if (rhythmActive) {
-                rhythmToggleBtn.classList.add('active');
-                rhythmToggleBtn.textContent = "RITMO: STOP";
-                currentStep = 0;
-                nextNoteTime = audioCtx.currentTime + 0.1; 
-                console.log("✅ Ritmo INICIADO. BPM:", currentBpm);
-                scheduler();
-            } else {
-                rhythmToggleBtn.classList.remove('active');
-                rhythmToggleBtn.textContent = "RITMO: START";
-                clearTimeout(rhythmTimerID);
-                console.log("⏹️ Ritmo DETENIDO");
-            }
-        });
-
-        tempoInput.addEventListener('input', (e) => {
-            let val = parseInt(e.target.value);
-            if (val >= 40 && val <= 240) {
-                currentBpm = val;
-            }
-        });
-
-        function scheduler() {
-            if (!rhythmActive) return;
-
-            // CORRECCIÓN CRÍTICA: Lookahead de 0.2s (estándar de la industria)
-            // Esto asegura que las notas se programen en el futuro, no en el pasado.
-            while (nextNoteTime < audioCtx.currentTime + 0.2) {
-                scheduleStep(currentStep, nextNoteTime);
-                nextStepTime();
-            }
-            rhythmTimerID = setTimeout(scheduler, 25);
-        }
-
-        function nextStepTime() {
-            const secondsPerBeat = 60.0 / currentBpm;
-            nextNoteTime += 0.25 * secondsPerBeat; // 16avos
-            currentStep = (currentStep + 1) % 16;
-        }
-
-        function scheduleStep(step, time) {
-            const style = styleSelect.value;
-            const pattern = rhythms[style];
-
-            if (pattern.kick[step]) playDrumSound('kick', time);
-            if (pattern.snare[step]) playDrumSound('snare', time);
-            if (pattern.hihat[step]) playDrumSound('hihat', time);
-        }
-
-        function playDrumSound(type, time) {
-            if (!audioCtx) return;
-            try {
-                // PROTECCIÓN ABSOLUTA: El tiempo NUNCA puede ser menor al tiempo actual + 10ms
-                const safeTime = Math.max(time, audioCtx.currentTime + 0.01);
-                
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                gain.connect(mainMasterGain);
-
-                if (type === 'kick') {
-                    osc.frequency.setValueAtTime(130, safeTime);
-                    osc.frequency.exponentialRampToValueAtTime(35, safeTime + 0.1);
-                    gain.gain.setValueAtTime(0.8, safeTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.15);
-                    osc.start(safeTime);
-                    osc.stop(safeTime + 0.15);
-                } else if (type === 'snare') {
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(220, safeTime);
-                    osc.frequency.exponentialRampToValueAtTime(80, safeTime + 0.08);
-                    gain.gain.setValueAtTime(0.4, safeTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.08);
-                    osc.start(safeTime);
-                    osc.stop(safeTime + 0.08);
-                } else if (type === 'hihat') {
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(800, safeTime);
-                    gain.gain.setValueAtTime(0.15, safeTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.04);
-                    osc.start(safeTime);
-                    osc.stop(safeTime + 0.04);
+        function releaseSustainedNotes() {
+            sustainedNotes.forEach(note => {
+                const keyElement = midiElements[note];
+                if (keyElement && !keyElement.hasAttribute('data-pressed')) {
+                    stopNoteInstance(note, true);
                 }
-            } catch (e) {
-                console.error("Error en sonido de batería:", e);
-            }
+            });
+            sustainedNotes.clear();
         }
 
         function buildKeyboard() {
@@ -501,9 +342,12 @@
 
         function noteOn(note, velocity, fromMouse = false) {
             initAudioEngine();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
             const keyElement = midiElements[note];
             if (keyElement) keyElement.classList.add('active');
+
+            sustainedNotes.delete(note);
 
             if (activeOscillators[note]) stopNoteInstance(note, false);
             activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
@@ -517,7 +361,11 @@
             const keyElement = midiElements[note];
             if (keyElement) keyElement.classList.remove('active');
 
-            stopNoteInstance(note, true);
+            if (sustainActive) {
+                sustainedNotes.add(note);
+            } else {
+                stopNoteInstance(note, true);
+            }
 
             if (fromMouse && activeMidiOutput) {
                 activeMidiOutput.send([128, note, 0]);
@@ -643,25 +491,23 @@
             midiInputSelect.innerHTML = '';
 
             if (inputs.length === 0) {
-                midiInputSelect.add(new Option("Sin entradas detectadas", ""));
-                statusDiv.textContent = "Conecta tu teclado por USB.";
+                midiInputSelect.add(new Option("Sin entradas USB", ""));
+                statusDiv.textContent = "Conecta la entrada USB de tu piano.";
                 statusDiv.className = "";
             } else {
-                inputs.forEach(input => {
-                    midiInputSelect.add(new Option(input.name + " [ENTRADA]", input.id));
-                });
+                inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
                 if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
-                statusDiv.textContent = "Teclado detectado correctamente.";
+                statusDiv.textContent = "Korg iX300 Conectado.";
                 statusDiv.className = "connected";
             }
             connectInput();
 
             const outputs = Array.from(currentMidiAccess.outputs.values());
             const currentOutId = midiOutputSelect.value;
-            midiOutputSelect.innerHTML = '<option value="">(Sin Salida / Desactivada)</option>';
+            midiOutputSelect.innerHTML = '<option value="">(Sin Salida USB / Desactivada)</option>';
 
             outputs.forEach(output => {
-                midiOutputSelect.add(new Option(output.name + " [SALIDA]", output.id));
+                midiOutputSelect.add(new Option(output.name, output.id));
             });
             if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
             connectOutput();
@@ -702,6 +548,16 @@
             const data2 = message.data[2];
 
             const command = statusByte & 0xF0; 
+
+            // Control de pedal Sustain físico por MIDI (CC 64)
+            if (command === 0xB0 && data1 === 64) {
+                sustainActive = (data2 >= 64);
+                if (!sustainActive) {
+                    releaseSustainedNotes();
+                }
+                if (activeMidiOutput) activeMidiOutput.send(message.data);
+                return;
+            }
 
             if (command === 0x90 && data2 > 0) {
                 noteOn(data1, data2);
