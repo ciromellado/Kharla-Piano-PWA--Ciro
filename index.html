@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web VST - Korg iX300 (Estable)</title>
+    <title>Web VST - Korg iX300 (Funcional)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -87,7 +87,7 @@
             border-radius: 4px;
             outline: none;
             cursor: pointer;
-            min-width: 160px; /* Un poco más ancho para las etiquetas */
+            min-width: 160px;
         }
         select:hover, input[type="range"]:hover, input[type="number"]:hover {
             border-color: #00bcd4;
@@ -208,7 +208,7 @@
                     
                     <div class="control-group">
                         <label for="volume">Volumen Master:</label>
-                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+                        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
                     </div>
 
                     <div class="control-group">
@@ -233,7 +233,7 @@
                     </div>
 
                     <div>
-                        <button id="rhythm-toggle" class="rhythm-btn">RITMO: START / STOP</button>
+                        <button id="rhythm-toggle" class="rhythm-btn">RITMO: START</button>
                     </div>
                 </div>
             </div>
@@ -354,19 +354,24 @@
             updateReverbMix(parseFloat(e.target.value));
         });
 
-        // Control de Ritmo ESTABLE
+        // Control de Ritmo CORREGIDO
         rhythmToggleBtn.addEventListener('click', () => {
             initAudioEngine();
+            console.log("Estado del AudioContext:", audioCtx.state);
 
             rhythmActive = !rhythmActive;
             if (rhythmActive) {
                 rhythmToggleBtn.classList.add('active');
+                rhythmToggleBtn.textContent = "RITMO: STOP";
                 currentStep = 0;
-                nextNoteTime = audioCtx.currentTime + 0.05;
+                nextNoteTime = audioCtx.currentTime + 0.1; 
+                console.log("✅ Ritmo INICIADO. BPM:", currentBpm);
                 scheduler();
             } else {
                 rhythmToggleBtn.classList.remove('active');
+                rhythmToggleBtn.textContent = "RITMO: START";
                 clearTimeout(rhythmTimerID);
+                console.log("⏹️ Ritmo DETENIDO");
             }
         });
 
@@ -380,12 +385,9 @@
         function scheduler() {
             if (!rhythmActive) return;
 
-            // CORRECCIÓN CRÍTICA: Evitar que el tiempo se quede en el pasado
-            if (nextNoteTime < audioCtx.currentTime) {
-                nextNoteTime = audioCtx.currentTime;
-            }
-
-            while (nextNoteTime < audioCtx.currentTime + 0.1) {
+            // CORRECCIÓN CRÍTICA: Lookahead de 0.2s (estándar de la industria)
+            // Esto asegura que las notas se programen en el futuro, no en el pasado.
+            while (nextNoteTime < audioCtx.currentTime + 0.2) {
                 scheduleStep(currentStep, nextNoteTime);
                 nextStepTime();
             }
@@ -394,7 +396,7 @@
 
         function nextStepTime() {
             const secondsPerBeat = 60.0 / currentBpm;
-            nextNoteTime += 0.25 * secondsPerBeat;
+            nextNoteTime += 0.25 * secondsPerBeat; // 16avos
             currentStep = (currentStep + 1) % 16;
         }
 
@@ -410,35 +412,38 @@
         function playDrumSound(type, time) {
             if (!audioCtx) return;
             try {
+                // PROTECCIÓN ABSOLUTA: El tiempo NUNCA puede ser menor al tiempo actual + 10ms
+                const safeTime = Math.max(time, audioCtx.currentTime + 0.01);
+                
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 gain.connect(mainMasterGain);
 
                 if (type === 'kick') {
-                    osc.frequency.setValueAtTime(130, time);
-                    osc.frequency.exponentialRampToValueAtTime(35, time + 0.1);
-                    gain.gain.setValueAtTime(0.8, time);
-                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
-                    osc.start(time);
-                    osc.stop(time + 0.15);
+                    osc.frequency.setValueAtTime(130, safeTime);
+                    osc.frequency.exponentialRampToValueAtTime(35, safeTime + 0.1);
+                    gain.gain.setValueAtTime(0.8, safeTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.15);
+                    osc.start(safeTime);
+                    osc.stop(safeTime + 0.15);
                 } else if (type === 'snare') {
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(220, time);
-                    osc.frequency.exponentialRampToValueAtTime(80, time + 0.08);
-                    gain.gain.setValueAtTime(0.4, time);
-                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-                    osc.start(time);
-                    osc.stop(time + 0.08);
+                    osc.frequency.setValueAtTime(220, safeTime);
+                    osc.frequency.exponentialRampToValueAtTime(80, safeTime + 0.08);
+                    gain.gain.setValueAtTime(0.4, safeTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.08);
+                    osc.start(safeTime);
+                    osc.stop(safeTime + 0.08);
                 } else if (type === 'hihat') {
                     osc.type = 'square';
-                    osc.frequency.setValueAtTime(800, time);
-                    gain.gain.setValueAtTime(0.15, time);
-                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
-                    osc.start(time);
-                    osc.stop(time + 0.04);
+                    osc.frequency.setValueAtTime(800, safeTime);
+                    gain.gain.setValueAtTime(0.15, safeTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, safeTime + 0.04);
+                    osc.start(safeTime);
+                    osc.stop(safeTime + 0.04);
                 }
             } catch (e) {
-                console.warn("Error en sonido de batería:", e);
+                console.error("Error en sonido de batería:", e);
             }
         }
 
@@ -633,7 +638,6 @@
         }
 
         function updateMidiPorts() {
-            // 1. PROCESAR ENTRADAS (Lo que el navegador RECIBE del teclado)
             const inputs = Array.from(currentMidiAccess.inputs.values());
             const currentInId = midiInputSelect.value;
             midiInputSelect.innerHTML = '';
@@ -644,7 +648,6 @@
                 statusDiv.className = "";
             } else {
                 inputs.forEach(input => {
-                    // ETIQUETA CLARA para evitar confusión
                     midiInputSelect.add(new Option(input.name + " [ENTRADA]", input.id));
                 });
                 if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
@@ -653,13 +656,11 @@
             }
             connectInput();
 
-            // 2. PROCESAR SALIDAS (Lo que el navegador ENVÍA al teclado/software)
             const outputs = Array.from(currentMidiAccess.outputs.values());
             const currentOutId = midiOutputSelect.value;
             midiOutputSelect.innerHTML = '<option value="">(Sin Salida / Desactivada)</option>';
 
             outputs.forEach(output => {
-                // ETIQUETA CLARA para evitar confusión
                 midiOutputSelect.add(new Option(output.name + " [SALIDA]", output.id));
             });
             if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
