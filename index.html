@@ -87,7 +87,7 @@
             border-radius: 4px;
             outline: none;
             cursor: pointer;
-            min-width: 130px;
+            min-width: 160px; /* Un poco más ancho para las etiquetas */
         }
         select:hover, input[type="range"]:hover, input[type="number"]:hover {
             border-color: #00bcd4;
@@ -183,14 +183,14 @@
             <div class="controls-section">
                 <div class="controls-row">
                     <div class="control-group">
-                        <label for="midi-input">Entrada MIDI USB:</label>
+                        <label for="midi-input">Entrada MIDI (Recibe del teclado):</label>
                         <select id="midi-input">
-                            <option value="">Buscando entradas...</option>
+                            <option value="">Buscando...</option>
                         </select>
                     </div>
 
                     <div class="control-group">
-                        <label for="midi-output">Salida MIDI USB:</label>
+                        <label for="midi-output">Salida MIDI (Envía al teclado):</label>
                         <select id="midi-output">
                             <option value="">(Ninguna / Opcional)</option>
                         </select>
@@ -362,7 +362,6 @@
             if (rhythmActive) {
                 rhythmToggleBtn.classList.add('active');
                 currentStep = 0;
-                // Iniciamos el tiempo un poco en el futuro para dar margen
                 nextNoteTime = audioCtx.currentTime + 0.05;
                 scheduler();
             } else {
@@ -395,7 +394,7 @@
 
         function nextStepTime() {
             const secondsPerBeat = 60.0 / currentBpm;
-            nextNoteTime += 0.25 * secondsPerBeat; // 16avos
+            nextNoteTime += 0.25 * secondsPerBeat;
             currentStep = (currentStep + 1) % 16;
         }
 
@@ -634,28 +633,34 @@
         }
 
         function updateMidiPorts() {
+            // 1. PROCESAR ENTRADAS (Lo que el navegador RECIBE del teclado)
             const inputs = Array.from(currentMidiAccess.inputs.values());
             const currentInId = midiInputSelect.value;
             midiInputSelect.innerHTML = '';
 
             if (inputs.length === 0) {
-                midiInputSelect.add(new Option("Sin entradas USB", ""));
-                statusDiv.textContent = "Conecta la entrada USB de tu piano.";
+                midiInputSelect.add(new Option("Sin entradas detectadas", ""));
+                statusDiv.textContent = "Conecta tu teclado por USB.";
                 statusDiv.className = "";
             } else {
-                inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
+                inputs.forEach(input => {
+                    // ETIQUETA CLARA para evitar confusión
+                    midiInputSelect.add(new Option(input.name + " [ENTRADA]", input.id));
+                });
                 if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
-                statusDiv.textContent = "Korg iX300 Conectado.";
+                statusDiv.textContent = "Teclado detectado correctamente.";
                 statusDiv.className = "connected";
             }
             connectInput();
 
+            // 2. PROCESAR SALIDAS (Lo que el navegador ENVÍA al teclado/software)
             const outputs = Array.from(currentMidiAccess.outputs.values());
             const currentOutId = midiOutputSelect.value;
-            midiOutputSelect.innerHTML = '<option value="">(Sin Salida USB / Desactivada)</option>';
+            midiOutputSelect.innerHTML = '<option value="">(Sin Salida / Desactivada)</option>';
 
             outputs.forEach(output => {
-                midiOutputSelect.add(new Option(output.name, output.id));
+                // ETIQUETA CLARA para evitar confusión
+                midiOutputSelect.add(new Option(output.name + " [SALIDA]", output.id));
             });
             if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
             connectOutput();
