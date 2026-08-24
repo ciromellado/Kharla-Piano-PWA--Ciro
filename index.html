@@ -409,9 +409,19 @@
             if (pattern.hihat[step]) playDrumSound('hihat', time);
         }
 
-            function playDrumSound(type, time) {
+                    function playDrumSound(type, time) {
             if (!audioCtx) return;
+
+            // 1. Mapeo de instrumentos a notas MIDI estándar (General MIDI - Canal 10)
+            const drumNotes = {
+                'kick': 36,   // C1 ( bombo )
+                'snare': 38,  // D1 ( caja )
+                'hihat': 42   // F#1 ( hi-hat cerrado )
+            };
+
+            const note = drumNotes[type];
             
+            // --- PARTE 1: Sonido interno del navegador (para monitoreo) ---
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -441,12 +451,31 @@
                     osc.stop(time + 0.04);
                 }
             } catch (error) {
-                // Si ocurre un error de programación en el pasado, lo registramos 
-                // pero no detenemos el bucle del scheduler.
-                console.warn("Error al programar sonido de batería:", error);
+                console.warn("Error de audio interno:", error);
+            }
+
+            // --- PARTE 2: Enviar señal MIDI al dispositivo externo (Korg iX300) ---
+            if (note && activeMidiOutput) {
+                // Calculamos cuántos milisegundos faltan para que suene ese golpe
+                const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
+                
+                setTimeout(() => {
+                    // 0x99 = Note On en Canal 10 (Percusión)
+                    // 0x89 = Note Off en Canal 10
+                    const velocity = 100; // Velocidad de la nota (1-127)
+                    
+                    // Enviar Note On
+                    activeMidiOutput.send([0x99, note, velocity]);
+                    
+                    // Enviar Note Off después de un tiempo corto (duración del golpe)
+                    const duration = type === 'hihat' ? 50 : 100; // ms
+                    setTimeout(() => {
+                        activeMidiOutput.send([0x89, note, 0]);
+                    }, duration);
+                    
+                }, delayMs);
             }
         }
-
         function buildKeyboard() {
             const whiteKeyWidth = 34;
             let whiteIndex = 0;
