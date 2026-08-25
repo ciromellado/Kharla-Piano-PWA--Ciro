@@ -113,6 +113,7 @@
             font-size: 0.6rem;
             font-weight: 600;
             box-sizing: border-box;
+            transition: background 0.1s, box-shadow 0.1s;
         }
         .white {
             width: 34px;
@@ -283,6 +284,7 @@
                 const keyElement = midiElements[note];
                 if (keyElement && !keyElement.hasAttribute('data-pressed')) {
                     stopNoteInstance(note, true);
+                    if (keyElement) keyElement.classList.remove('active');
                 }
             });
             sustainedNotes.clear();
@@ -311,11 +313,14 @@
                 
                 key.innerHTML = `<span>${noteNames[noteInOctave]}</span><span style="font-size:0.5rem; opacity:0.6;">${octave}</span>`;
 
-                key.addEventListener('mousedown', () => {
+                // Eventos de Ratón
+                key.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
                 });
-                key.addEventListener('mouseup', () => {
+                key.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
                     key.removeAttribute('data-pressed');
                     noteOff(noteNumber, true);
                 });
@@ -324,6 +329,25 @@
                         key.removeAttribute('data-pressed');
                         noteOff(noteNumber, true);
                     }
+                });
+
+                // Eventos Táctiles (Móvil/Tablet)
+                key.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    key.setAttribute('data-pressed', 'true');
+                    noteOn(noteNumber, 100, true);
+                }, { passive: false });
+
+                key.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    key.removeAttribute('data-pressed');
+                    noteOff(noteNumber, true);
+                });
+
+                key.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    key.removeAttribute('data-pressed');
+                    noteOff(noteNumber, true);
                 });
 
                 if (!isBlack) {
@@ -340,6 +364,16 @@
         }
         buildKeyboard();
 
+        // SEGURIDAD GLOBAL: Si el usuario suelta el ratón fuera de la ventana, limpia todas las teclas
+        window.addEventListener('mouseup', () => {
+            Object.values(midiElements).forEach(key => {
+                if (key.hasAttribute('data-pressed')) {
+                    key.removeAttribute('data-pressed');
+                    noteOff(parseInt(key.dataset.note), true);
+                }
+            });
+        });
+
         function noteOn(note, velocity, fromMouse = false) {
             initAudioEngine();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -349,8 +383,27 @@
 
             sustainedNotes.delete(note);
 
-            if (activeOscillators[note]) stopNoteInstance(note, false);
-            activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
+            // Limpieza agresiva de la instancia anterior para evitar acumulación
+            if (activeOscillators[note]) {
+                const old = activeOscillators[note];
+                if (old.timeoutId) clearTimeout(old.timeoutId);
+                if (old.watchdog) clearTimeout(old.watchdog);
+                old.oscs.forEach(o => { try { o.stop(); } catch(e){} });
+                try { old.gainNode.disconnect(); } catch(e){}
+            }
+            
+            const newInstance = playPianoNote(note, velocity, presetSelect.value);
+            activeOscillators[note] = newInstance;
+
+            // WATCHDOG: Si una nota MIDI se queda pegada por un error de USB (Note Off perdido), 
+            // la apaga automáticamente a los 8 segundos (respeta el pedal de sustain).
+            newInstance.watchdog = setTimeout(() => {
+                if (activeOscillators[note] === newInstance && !sustainedNotes.has(note)) {
+                    console.warn(`Watchdog: Apagando nota MIDI atascada ${note}`);
+                    stopNoteInstance(note, false);
+                    if (keyElement) keyElement.classList.remove('active');
+                }
+            }, 8000);
 
             if (fromMouse && activeMidiOutput) {
                 activeMidiOutput.send([144, note, velocity]);
@@ -374,19 +427,31 @@
 
         function stopNoteInstance(note, gradualRelease = true) {
             if (activeOscillators[note]) {
-                const { oscs, gainNode } = activeOscillators[note];
+                const { oscs, gainNode, timeoutId, watchdog } = activeOscillators[note];
+                
+                if (timeoutId) clearTimeout(timeoutId);
+                if (watchdog) clearTimeout(watchdog);
+
                 const now = audioCtx.currentTime;
-                const releaseTime = gradualRelease ? 2.2 : 0.3; 
+                const releaseTime = gradualRelease ? 0.4 : 0.05;
 
                 gainNode.gain.cancelScheduledValues(now);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+                // Se usa un valor extremadamente bajo para garantizar que no haya zumbido residual
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + releaseTime);
 
-                setTimeout(() => {
+                const newTimeoutId = setTimeout(() => {
                     oscs.forEach(o => { try { o.stop(); } catch(e){} });
-                }, releaseTime * 1000 + 100);
+                    // DESCONEXIÓN FORZADA: Garantiza silencio absoluto aunque el oscilador falle al detenerse
+                    try { gainNode.disconnect(); } catch(e){}
+                    
+                    // Solo se elimina si sigue siendo la misma instancia (evita condiciones de carrera)
+                    if (activeOscillators[note] && activeOscillators[note].gainNode === gainNode) {
+                        delete activeOscillators[note];
+                    }
+                }, releaseTime * 1000 + 50);
 
-                delete activeOscillators[note];
+                activeOscillators[note].timeoutId = newTimeoutId;
             }
         }
 
@@ -466,7 +531,7 @@
 
                 osc1.start(now); mod.start(now);
             }
-            return { oscs, gainNode };
+            return { oscs, gainNode, timeoutId: null, watchdog: null };
         }
 
         if (navigator.requestMIDIAccess) {
@@ -549,12 +614,24 @@
 
             const command = statusByte & 0xF0; 
 
-            // Control de pedal Sustain físico por MIDI (CC 64)
-            if (command === 0xB0 && data1 === 64) {
-                sustainActive = (data2 >= 64);
-                if (!sustainActive) {
-                    releaseSustainedNotes();
+            if (command === 0xB0) {
+                // Control Change (CC)
+                if (data1 === 64) { 
+                    // Pedal de Sustain
+                    sustainActive = (data2 >= 64);
+                    if (!sustainActive) {
+                        releaseSustainedNotes();
+                    }
+                } else if (data1 === 120 || data1 === 123) { 
+                    // CORRECCIÓN CLAVE: All Sound Off / All Notes Off
+                    // El Korg puede enviar esto para limpiar notas atascadas. Ahora el código lo respeta.
+                    Object.keys(activeOscillators).forEach(note => {
+                        stopNoteInstance(parseInt(note), false);
+                    });
+                    sustainedNotes.clear();
+                    Object.values(midiElements).forEach(key => key.classList.remove('active'));
                 }
+                
                 if (activeMidiOutput) activeMidiOutput.send(message.data);
                 return;
             }
