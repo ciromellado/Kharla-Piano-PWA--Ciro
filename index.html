@@ -601,7 +601,7 @@
             } else {
                 inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
                 if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
-                statusDiv.textContent = "Korg iX300 Conectado.";
+                statusDiv.textContent = "Kharla iX300 Conectado.";
                 statusDiv.className = "connected";
             }
             connectInput();
