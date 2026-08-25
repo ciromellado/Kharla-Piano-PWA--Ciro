@@ -1,0 +1,24 @@
+{
+  "name": "Kharla Piano ix-300",
+  "short_name": "Kharla Piano",
+  "description": "Sintetizador de piano Web con soporte MIDI",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F5DC",
+  "theme_color": "#1e1e1e",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "images/icon-piano192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/icon-piano512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
