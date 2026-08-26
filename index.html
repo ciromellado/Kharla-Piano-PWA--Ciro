@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kharla Piano PWA</title>
     <meta name="theme-color" content="#1e1e1e">
-    
-    <!-- ⭐ CDN OFICIAL Y ESTABLE DE WEBAUDIOFONT -->
-    <script src="https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js"></script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icon-piano192.png">
     
     <style>
         body {
@@ -51,16 +52,6 @@
             padding: 8px 12px;
             border-radius: 6px;
             border: 1px solid rgba(76, 175, 80, 0.3);
-        }
-        #status.loading {
-            color: #2196f3;
-            background: rgba(33, 150, 243, 0.1);
-            border-color: rgba(33, 150, 243, 0.3);
-        }
-        #status.error {
-            color: #f44336;
-            background: rgba(244, 67, 54, 0.1);
-            border-color: rgba(244, 67, 54, 0.3);
         }
         
         .controls-row {
@@ -106,13 +97,12 @@
             margin-top: 20px;
         }
         .piano {
-            /* ⭐ CORRECCIÓN: Eliminado display:flex para evitar conflictos con position:absolute */
+            display: flex;
             position: relative;
             background: #000;
             padding: 10px;
             border-radius: 6px;
             height: 200px;
-            width: fit-content;
         }
         .key {
             position: absolute;
@@ -136,7 +126,6 @@
             color: #555;
             z-index: 1;
         }
-        .white:hover { background: #f0f0f0; }
         .white.active {
             background: #00bcd4 !important;
             color: #000 !important;
@@ -151,13 +140,10 @@
             border: 1px solid #000;
             font-size: 0.5rem;
         }
-        .black:hover { background: #333; }
         .black.active {
             background: #ff5722 !important;
             color: #fff !important;
         }
-        
-        #file-input { display: none; }
     </style>
 </head>
 <body>
@@ -196,8 +182,6 @@
                     <option value="honkytonk">Honky Tonk</option>
                     <option value="synthpad">Synth Pad Piano</option>
                     <option value="harpsichord">Harpsichord (Clavicémbalo)</option>
-                    <option value="divider" disabled>────────────────</option>
-                    <option value="import-sf2">📁 Importar SoundFont (.sf2)...</option>
                 </select>
             </div>
             
@@ -212,15 +196,12 @@
             </div>
         </div>
 
-        <input type="file" id="file-input" accept=".sf2" />
-
         <div class="piano-wrapper" id="piano-wrapper">
             <div class="piano" id="keyboard"></div>
         </div>
     </div>
 
     <script>
-        // 1. OBTENER ELEMENTOS DEL DOM
         const statusDiv = document.getElementById('status');
         const keyboardDiv = document.getElementById('keyboard');
         const presetSelect = document.getElementById('preset');
@@ -228,44 +209,92 @@
         const volumeSlider = document.getElementById('volume');
         const midiInputSelect = document.getElementById('midi-input');
         const midiOutputSelect = document.getElementById('midi-output');
-        const fileInput = document.getElementById('file-input');
 
-        // 2. VARIABLES GLOBALES
-        const startNote = 36;
+        const startNote = 36; // C2 (61 teclas exactas)
         const numKeys = 61;   
         const midiElements = {};
         const activeOscillators = {};
-        const activeVoices = {};
         
         let sustainActive = false;
         const sustainedNotes = new Set();
+
         let currentMidiAccess = null;
         let activeMidiInput = null;
         let activeMidiOutput = null;
+
         const noteNames = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
-        
-        // ⭐ VARIABLES DE SOUNDFONT (Con protección contra fallos de carga)
-        let player = null;
-        let sf2Preset = null;
-        let isSf2Loaded = false;
-        let currentPreset = 'grand';
 
-        // Intentar inicializar el reproductor de SF2 de forma segura
-        if (typeof WebAudioFontPlayer !== 'undefined') {
-            player = new WebAudioFontPlayer();
-            console.log("✅ WebAudioFontPlayer cargado correctamente.");
-        } else {
-            console.warn("⚠️ WebAudioFontPlayer no se cargó. El piano sintético funcionará, pero la importación de SF2 estará deshabilitada.");
-            statusDiv.textContent = "⚠️ Modo offline: Sonidos sintéticos activos";
-            statusDiv.className = "error";
+        function initAudioEngine() {
+            if (audioCtx) return;
+            audioCtx = new AudioContext();
+
+            mainMasterGain = audioCtx.createGain();
+            mainMasterGain.gain.value = parseFloat(volumeSlider.value);
+
+            convolverNode = audioCtx.createConvolver();
+            createReverbImpulse();
+
+            wetGain = audioCtx.createGain();
+            dryGain = audioCtx.createGain();
+            updateReverbMix(parseFloat(reverbSlider.value));
+
+            mainMasterGain.connect(dryGain);
+            mainMasterGain.connect(convolverNode);
+            convolverNode.connect(wetGain);
+
+            dryGain.connect(audioCtx.destination);
+            wetGain.connect(audioCtx.destination);
         }
 
-        // 3. CONSTRUIR EL TECLADO (Se ejecuta SIEMPRE, independientemente de errores externos)
+        volumeSlider.addEventListener('input', (e) => {
+            if (mainMasterGain && audioCtx) {
+                mainMasterGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
+            }
+        });
+
+        function createReverbImpulse() {
+            if (!audioCtx) return;
+            const rate = audioCtx.sampleRate;
+            const length = rate * 2.0; 
+            const impulse = audioCtx.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+
+            for (let i = 0; i < length; i++) {
+                const decay = Math.exp(-i / (rate * 0.5));
+                left[i] = (Math.random() * 2 - 1) * decay;
+                right[i] = (Math.random() * 2 - 1) * decay;
+            }
+            convolverNode.buffer = impulse;
+        }
+
+        function updateReverbMix(val) {
+            if (!wetGain || !dryGain) return;
+            wetGain.gain.value = val;
+            dryGain.gain.value = 1.0 - (val * 0.5);
+        }
+
+        reverbSlider.addEventListener('input', (e) => {
+            updateReverbMix(parseFloat(e.target.value));
+        });
+
+        function releaseSustainedNotes() {
+            sustainedNotes.forEach(note => {
+                const keyElement = midiElements[note];
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
+                if (keyElement && !keyElement.hasAttribute('data-pressed')) {
+                    stopNoteInstance(note, true);
+                }
+            });
+            sustainedNotes.clear();
+        }
+
         function buildKeyboard() {
-            console.log("🎹 Construyendo teclado...");
             const whiteKeyWidth = 34;
             let whiteIndex = 0;
 
@@ -285,28 +314,38 @@
                 const key = document.createElement('div');
                 key.className = `key ${isBlack ? 'black' : 'white'}`;
                 key.dataset.note = noteNumber;
+                
                 key.innerHTML = `<span>${noteNames[noteInOctave]}</span><span style="font-size:0.5rem; opacity:0.6;">${octave}</span>`;
 
-                // Eventos Mouse
-                key.addEventListener('mousedown', () => { key.setAttribute('data-pressed', 'true'); noteOn(noteNumber, 100, true); });
-                key.addEventListener('mouseup', () => { key.removeAttribute('data-pressed'); noteOff(noteNumber, true); });
+                // Eventos de Mouse
+                key.addEventListener('mousedown', () => {
+                    key.setAttribute('data-pressed', 'true');
+                    noteOn(noteNumber, 100, true);
+                });
+                key.addEventListener('mouseup', () => {
+                    key.removeAttribute('data-pressed');
+                    noteOff(noteNumber, true);
+                });
                 key.addEventListener('mouseleave', () => {
-                    if (key.hasAttribute('data-pressed')) { key.removeAttribute('data-pressed'); noteOff(noteNumber, true); }
+                    if (key.hasAttribute('data-pressed')) {
+                        key.removeAttribute('data-pressed');
+                        noteOff(noteNumber, true);
+                    }
                 });
 
-                // Eventos Táctiles
+                // Eventos Táctiles (Móviles/Tablets)
                 key.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
                 }, { passive: false });
+
                 key.addEventListener('touchend', (e) => {
                     e.preventDefault();
                     key.removeAttribute('data-pressed');
                     noteOff(noteNumber, true);
                 });
 
-                // Posicionamiento
                 if (!isBlack) {
                     key.style.left = `${whiteIndex * whiteKeyWidth}px`;
                     keyboardDiv.appendChild(key);
@@ -318,173 +357,65 @@
 
                 midiElements[noteNumber] = key;
             }
-            console.log("✅ Teclado construido con éxito.");
         }
-        
-        // Ejecutar inmediatamente
         buildKeyboard();
 
-        // 4. LÓGICA DE IMPORTACIÓN DE SF2
-        presetSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'import-sf2') {
-                if (!player) {
-                    alert("⚠️ El motor de SoundFont no se cargó. Verifica tu conexión a internet y recarga la página.");
-                    e.target.value = currentPreset;
-                    return;
-                }
-                fileInput.click();
-            } else if (e.target.value === 'divider') {
-                e.target.value = currentPreset;
-            } else {
-                currentPreset = e.target.value;
-                isSf2Loaded = false;
-                sf2Preset = null;
-                statusDiv.textContent = "✅ Listo para tocar";
-                statusDiv.className = "";
-            }
-        });
-
-       fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) { presetSelect.value = currentPreset; return; }
-    if (!file.name.toLowerCase().endsWith('.sf2')) {
-        alert('Por favor, selecciona un archivo .sf2 válido');
-        presetSelect.value = currentPreset;
-        return;
-    }
-    
-    try {
-        statusDiv.textContent = `⏳ Procesando ${file.name}...`;
-        statusDiv.className = "loading";
-        
-        // Usar FileReader para leer el archivo local como ArrayBuffer
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const arrayBuffer = event.target.result;
-            
-            // ⭐ Forma compatible con las versiones actuales de WebAudioFont para parsear SoundFonts
-            player.loader.decodeAudio(audioCtx, arrayBuffer, (preset) => {
-                sf2Preset = preset;
-                isSf2Loaded = true;
-                currentPreset = 'sf2';
-                
-                const importOption = presetSelect.querySelector('option[value="import-sf2"]');
-                importOption.textContent = `✅ ${file.name}`;
-                
-                statusDiv.textContent = `✅ ${file.name} cargado`;
-                statusDiv.className = "";
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            });
-        };
-        
-        reader.readAsArrayBuffer(file);
-        fileInput.value = '';
-        
-    } catch (error) {
-        console.error("Error cargando SF2:", error);
-        statusDiv.textContent = "❌ Error al cargar el archivo";
-        statusDiv.className = "error";
-        presetSelect.value = currentPreset;
-    }
-});
-
-        // 5. MOTOR DE AUDIO
-        function initAudioEngine() {
-            if (audioCtx) return;
-            audioCtx = new AudioContext();
-            mainMasterGain = audioCtx.createGain();
-            mainMasterGain.gain.value = parseFloat(volumeSlider.value);
-            convolverNode = audioCtx.createConvolver();
-            createReverbImpulse();
-            wetGain = audioCtx.createGain();
-            dryGain = audioCtx.createGain();
-            updateReverbMix(parseFloat(reverbSlider.value));
-            mainMasterGain.connect(dryGain);
-            mainMasterGain.connect(convolverNode);
-            convolverNode.connect(wetGain);
-            dryGain.connect(audioCtx.destination);
-            wetGain.connect(audioCtx.destination);
-        }
-
-        volumeSlider.addEventListener('input', (e) => {
-            if (mainMasterGain && audioCtx) mainMasterGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
-        });
-
-        function createReverbImpulse() {
-            const rate = audioCtx.sampleRate;
-            const length = rate * 2.0; 
-            const impulse = audioCtx.createBuffer(2, length, rate);
-            const left = impulse.getChannelData(0);
-            const right = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                const decay = Math.exp(-i / (rate * 0.5));
-                left[i] = (Math.random() * 2 - 1) * decay;
-                right[i] = (Math.random() * 2 - 1) * decay;
-            }
-            convolverNode.buffer = impulse;
-        }
-
-        function updateReverbMix(val) {
-            if (!wetGain || !dryGain) return;
-            wetGain.gain.value = val;
-            dryGain.gain.value = 1.0 - (val * 0.5);
-        }
-        reverbSlider.addEventListener('input', (e) => updateReverbMix(parseFloat(e.target.value)));
-
-        function releaseSustainedNotes() {
-            sustainedNotes.forEach(note => {
-                const keyElement = midiElements[note];
-                if (keyElement) keyElement.classList.remove('active');
-                if (keyElement && !keyElement.hasAttribute('data-pressed')) stopNoteInstance(note, true);
-            });
-            sustainedNotes.clear();
-        }
-
-        // 6. REPRODUCCIÓN DE NOTAS
         function noteOn(note, velocity, fromMouse = false) {
             initAudioEngine();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+
             const keyElement = midiElements[note];
             if (keyElement) keyElement.classList.add('active');
+
             sustainedNotes.delete(note);
 
-            if (isSf2Loaded && sf2Preset && player) {
-                player.queueWaveTable(audioCtx, mainMasterGain, sf2Preset, 0, note, 15, velocity / 127);
-                activeVoices[note] = true;
-            } else {
-                if (activeOscillators[note]) stopNoteInstance(note, false);
-                activeOscillators[note] = playPianoNote(note, velocity, currentPreset);
-            }
+            if (activeOscillators[note]) stopNoteInstance(note, false);
+            activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
 
-            if (fromMouse && activeMidiOutput) activeMidiOutput.send([144, note, velocity]);
+            if (fromMouse && activeMidiOutput) {
+                activeMidiOutput.send([144, note, velocity]);
+            }
         }
 
         function noteOff(note, fromMouse = false) {
             const keyElement = midiElements[note];
-            if (!sustainActive && keyElement) keyElement.classList.remove('active');
+            
+            // Solo quitamos el color si NO hay sustain activo
+            if (!sustainActive && keyElement) {
+                keyElement.classList.remove('active');
+            }
+
             if (sustainActive) {
                 sustainedNotes.add(note);
             } else {
                 stopNoteInstance(note, true);
             }
-            if (fromMouse && activeMidiOutput) activeMidiOutput.send([128, note, 0]);
+
+            if (fromMouse && activeMidiOutput) {
+                activeMidiOutput.send([128, note, 0]);
+            }
         }
 
         function stopNoteInstance(note, gradualRelease = true) {
-            if (isSf2Loaded && sf2Preset && activeVoices[note]) {
-                delete activeVoices[note];
-            }
             if (activeOscillators[note]) {
                 const { oscs, gainNode } = activeOscillators[note];
                 const now = audioCtx.currentTime;
                 const releaseTime = gradualRelease ? 2.2 : 0.3; 
+
                 gainNode.gain.cancelScheduledValues(now);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+
                 setTimeout(() => {
-                    oscs.forEach(o => { try { o.stop(); o.disconnect(); } catch(e){} });
-                    gainNode.disconnect(); 
+                    oscs.forEach(o => { 
+                        try { 
+                            o.stop(); 
+                            o.disconnect(); // Previene fugas de memoria
+                        } catch(e){} 
+                    });
+                    gainNode.disconnect(); // Previene fugas de memoria
                 }, releaseTime * 1000 + 100);
+
                 delete activeOscillators[note];
             }
         }
@@ -493,67 +424,162 @@
             const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
             const now = audioCtx.currentTime;
             const velocityScale = (velocity / 127);
+
             const gainNode = audioCtx.createGain();
             gainNode.connect(mainMasterGain);
+
             let oscs = [];
 
             if (preset === 'grand') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle'; osc2.type = 'sine'; osc1.frequency.value = freq; osc2.frequency.value = freq * 2;
-                osc1.connect(gainNode); osc2.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02); gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.5);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'triangle'; osc2.type = 'sine';
+                osc1.frequency.value = freq; osc2.frequency.value = freq * 2;
+                osc1.connect(gainNode); osc2.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.5);
+                
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'bright') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sawtooth'; osc2.type = 'triangle'; osc1.frequency.value = freq; osc2.frequency.value = freq;
-                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(freq * 6, now); filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.8);
-                osc1.connect(filter); osc2.connect(filter); filter.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.3 * velocityScale, now + 0.01); gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.2);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'sawtooth'; osc2.type = 'triangle';
+                osc1.frequency.value = freq; osc2.frequency.value = freq;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(freq * 6, now);
+                filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.8);
+
+                osc1.connect(filter); osc2.connect(filter); filter.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.3 * velocityScale, now + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.2);
+
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'warm') {
-                const osc1 = audioCtx.createOscillator(); osc1.type = 'sine'; osc1.frequency.value = freq;
-                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = freq * 2.5;
-                osc1.connect(filter); filter.connect(gainNode); oscs = [osc1];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.5 * velocityScale, now + 0.04); gainNode.gain.exponentialRampToValueAtTime(0.04, now + 1.8);
+                const osc1 = audioCtx.createOscillator();
+                osc1.type = 'sine'; osc1.frequency.value = freq;
+                
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = freq * 2.5;
+
+                osc1.connect(filter); filter.connect(gainNode);
+                oscs = [osc1];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.5 * velocityScale, now + 0.04);
+                gainNode.gain.exponentialRampToValueAtTime(0.04, now + 1.8);
+
                 osc1.start(now);
             } else if (preset === 'electric') {
-                const osc1 = audioCtx.createOscillator(); osc1.type = 'sine'; osc1.frequency.value = freq;
-                const mod = audioCtx.createOscillator(); const modGain = audioCtx.createGain();
-                mod.type = 'sine'; mod.frequency.value = freq * 2; modGain.gain.value = 15;
-                mod.connect(modGain); modGain.connect(osc1.frequency); osc1.connect(gainNode); oscs = [osc1, mod];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02); gainNode.gain.exponentialRampToValueAtTime(0.06, now + 1.3);
+                const osc1 = audioCtx.createOscillator();
+                osc1.type = 'sine'; osc1.frequency.value = freq;
+
+                const mod = audioCtx.createOscillator();
+                const modGain = audioCtx.createGain();
+                mod.type = 'sine'; mod.frequency.value = freq * 2;
+                modGain.gain.value = 15;
+
+                mod.connect(modGain); modGain.connect(osc1.frequency);
+                osc1.connect(gainNode);
+                oscs = [osc1, mod];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
+                gainNode.gain.exponentialRampToValueAtTime(0.06, now + 1.3);
+
                 osc1.start(now); mod.start(now);
             } else if (preset === 'upright') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle'; osc2.type = 'sine'; osc1.frequency.value = freq; osc2.frequency.value = freq * 1.002;
-                osc1.connect(gainNode); osc2.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.45 * velocityScale, now + 0.01); gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.0);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'triangle';
+                osc2.type = 'sine';
+                osc1.frequency.value = freq;
+                osc2.frequency.value = freq * 1.002;
+                
+                osc1.connect(gainNode);
+                osc2.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.45 * velocityScale, now + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.0);
+
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'honkytonk') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle'; osc2.type = 'triangle'; osc1.frequency.value = freq * 0.995; osc2.frequency.value = freq * 1.005;
-                osc1.connect(gainNode); osc2.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.01); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'triangle';
+                osc2.type = 'triangle';
+                osc1.frequency.value = freq * 0.995;
+                osc2.frequency.value = freq * 1.005;
+                
+                osc1.connect(gainNode);
+                osc2.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'synthpad') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sine'; osc2.type = 'sawtooth'; osc1.frequency.value = freq; osc2.frequency.value = freq;
-                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(freq * 2, now); filter.frequency.linearRampToValueAtTime(freq * 4, now + 0.5);
-                osc1.connect(gainNode); osc2.connect(filter); filter.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.2); gainNode.gain.exponentialRampToValueAtTime(0.25 * velocityScale, now + 2.5);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'sine';
+                osc2.type = 'sawtooth';
+                osc1.frequency.value = freq;
+                osc2.frequency.value = freq;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(freq * 2, now);
+                filter.frequency.linearRampToValueAtTime(freq * 4, now + 0.5);
+
+                osc1.connect(gainNode);
+                osc2.connect(filter);
+                filter.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.2);
+                gainNode.gain.exponentialRampToValueAtTime(0.25 * velocityScale, now + 2.5);
+
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'harpsichord') {
-                const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sawtooth'; osc2.type = 'square'; osc1.frequency.value = freq; osc2.frequency.value = freq * 2;
-                const filter = audioCtx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 800;
-                osc1.connect(filter); osc2.connect(filter); filter.connect(gainNode); oscs = [osc1, osc2];
-                gainNode.gain.setValueAtTime(0.001, now); gainNode.gain.linearRampToValueAtTime(0.25 * velocityScale, now + 0.005); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                osc1.type = 'sawtooth';
+                osc2.type = 'square';
+                osc1.frequency.value = freq;
+                osc2.frequency.value = freq * 2;
+                
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 800;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gainNode);
+                oscs = [osc1, osc2];
+
+                gainNode.gain.setValueAtTime(0.001, now);
+                gainNode.gain.linearRampToValueAtTime(0.25 * velocityScale, now + 0.005);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
                 osc1.start(now); osc2.start(now);
             }
+
             return { oscs, gainNode };
         }
 
-        // 7. MIDI
+        // MIDI
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
         } else {
@@ -565,29 +591,47 @@
             updateMidiPorts();
             currentMidiAccess.onstatechange = () => updateMidiPorts();
         }
-        function onMIDIFailure() { statusDiv.textContent = "Error al inicializar MIDI."; }
+
+        function onMIDIFailure() {
+            statusDiv.textContent = "Error al inicializar MIDI.";
+        }
 
         function updateMidiPorts() {
             const inputs = Array.from(currentMidiAccess.inputs.values());
+            const currentInId = midiInputSelect.value;
             midiInputSelect.innerHTML = '';
-            if (inputs.length === 0) midiInputSelect.add(new Option("Sin entradas USB", ""));
-            else inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
+
+            if (inputs.length === 0) {
+                midiInputSelect.add(new Option("Sin entradas USB", ""));
+            } else {
+                inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
+                if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
+            }
             connectInput();
 
             const outputs = Array.from(currentMidiAccess.outputs.values());
+            const currentOutId = midiOutputSelect.value;
             midiOutputSelect.innerHTML = '<option value="">(Sin Salida)</option>';
             outputs.forEach(output => midiOutputSelect.add(new Option(output.name, output.id)));
+            if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
             connectOutput();
         }
 
         function connectInput() {
-            if (activeMidiInput) { activeMidiInput.onmidimessage = null; activeMidiInput = null; }
+            if (activeMidiInput) {
+                activeMidiInput.onmidimessage = null;
+                activeMidiInput = null;
+            }
             const selectedId = midiInputSelect.value;
             if (selectedId && currentMidiAccess) {
                 const input = currentMidiAccess.inputs.get(selectedId);
-                if (input) { activeMidiInput = input; activeMidiInput.onmidimessage = handleIncomingMidiMessage; }
+                if (input) {
+                    activeMidiInput = input;
+                    activeMidiInput.onmidimessage = handleIncomingMidiMessage;
+                }
             }
         }
+
         function connectOutput() {
             activeMidiOutput = null;
             const selectedId = midiOutputSelect.value;
@@ -596,6 +640,7 @@
                 if (output) activeMidiOutput = output;
             }
         }
+
         midiInputSelect.addEventListener('change', connectInput);
         midiOutputSelect.addEventListener('change', connectOutput);
 
@@ -611,6 +656,7 @@
                 if (activeMidiOutput) activeMidiOutput.send(message.data);
                 return;
             }
+
             if (command === 0x90 && data2 > 0) {
                 noteOn(data1, data2);
                 if (activeMidiOutput) activeMidiOutput.send(message.data);
@@ -620,8 +666,11 @@
             }
         }
 
+        // Desbloquear audio al primer clic en cualquier parte de la página
         document.addEventListener('click', () => {
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }, { once: true });
     </script>
 </body>
