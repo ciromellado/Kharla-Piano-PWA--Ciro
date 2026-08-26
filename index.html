@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kharla Piano PWA</title>
     <meta name="theme-color" content="#1e1e1e">
-    
-    <script src="https://cdn.jsdelivr.net/npm/soundfont2@0.4.0/dist/soundfont2.min.js"></script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icon-piano192.png">
     
     <style>
         body {
@@ -45,21 +47,11 @@
         
         #status {
             font-size: 0.85rem;
-            color: #ffc107;
-            background: rgba(255, 193, 7, 0.1);
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid rgba(255, 193, 7, 0.3);
-        }
-        #status.connected {
             color: #4caf50;
             background: rgba(76, 175, 80, 0.1);
-            border-color: rgba(76, 175, 80, 0.3);
-        }
-        #status.loading {
-            color: #2196f3;
-            background: rgba(33, 150, 243, 0.1);
-            border-color: rgba(33, 150, 243, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(76, 175, 80, 0.3);
         }
         
         .controls-row {
@@ -152,10 +144,6 @@
             background: #ff5722 !important;
             color: #fff !important;
         }
-        
-        #file-input {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -165,7 +153,7 @@
     <div class="vst-container">
         <div class="title-bar">
             <h1>🎹 Kharla Piano PWA - Ciro</h1>
-            <div id="status">Listo para tocar</div>
+            <div id="status">✅ Listo para tocar</div>
         </div>
         
         <div class="controls-row">
@@ -183,9 +171,8 @@
                 </select>
             </div>
             
-            <!-- ⭐ SELECT DE TIPO DE PIANO CON OPCIÓN DE IMPORTAR SF2 -->
             <div class="control-group">
-                <label for="preset">Tipo de Piano:</label>
+                <label for="preset">Tipo de Sonido:</label>
                 <select id="preset">
                     <option value="grand">Grand Acoustic</option>
                     <option value="bright">Bright Piano</option>
@@ -195,24 +182,19 @@
                     <option value="honkytonk">Honky Tonk</option>
                     <option value="synthpad">Synth Pad Piano</option>
                     <option value="harpsichord">Harpsichord (Clavicémbalo)</option>
-                    <option value="divider" disabled>────────────────</option>
-                    <option value="import-sf2">📁 Importar SoundFont (.sf2)...</option>
                 </select>
             </div>
             
             <div class="control-group">
                 <label for="volume">Volumen Master:</label>
-                <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
+                <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
             </div>
 
             <div class="control-group">
-                <label for="reverb">Reverb:</label>
-                <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.3">
+                <label for="reverb">Resonancia (Reverb):</label>
+                <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.4">
             </div>
         </div>
-
-        <!-- Input de archivo oculto -->
-        <input type="file" id="file-input" accept=".sf2" />
 
         <div class="piano-wrapper" id="piano-wrapper">
             <div class="piano" id="keyboard"></div>
@@ -227,13 +209,11 @@
         const volumeSlider = document.getElementById('volume');
         const midiInputSelect = document.getElementById('midi-input');
         const midiOutputSelect = document.getElementById('midi-output');
-        const fileInput = document.getElementById('file-input');
 
-        const startNote = 36;
+        const startNote = 36; // C2 (61 teclas exactas)
         const numKeys = 61;   
         const midiElements = {};
         const activeOscillators = {};
-        const activeVoices = {};
         
         let sustainActive = false;
         const sustainedNotes = new Set();
@@ -246,85 +226,6 @@
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
-        
-        // Variables para SF2
-        let sf2Synth = null;
-        let sf2Loaded = false;
-        let currentPreset = 'grand'; // Preset por defecto
-
-        // ⭐ CUANDO CAMBIA EL SELECT DE PRESET
-        presetSelect.addEventListener('change', (e) => {
-            const value = e.target.value;
-            
-            if (value === 'import-sf2') {
-                // Abrir el diálogo de archivos
-                fileInput.click();
-            } else if (value === 'divider') {
-                // No permitir seleccionar el separador
-                e.target.value = currentPreset;
-            } else {
-                // Cambiar a preset sintético
-                currentPreset = value;
-                sf2Loaded = false;
-                sf2Synth = null;
-                statusDiv.textContent = `🎹 Preset: ${presetSelect.options[presetSelect.selectedIndex].text}`;
-                statusDiv.className = "connected";
-            }
-        });
-
-        // ⭐ CUANDO SE IMPORTA UN ARCHIVO SF2
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) {
-                // Si canceló, volver al preset anterior
-                presetSelect.value = currentPreset;
-                return;
-            }
-            
-            if (!file.name.toLowerCase().endsWith('.sf2')) {
-                alert('Por favor selecciona un archivo .sf2 válido');
-                presetSelect.value = currentPreset;
-                return;
-            }
-            
-            try {
-                statusDiv.textContent = `⏳ Cargando ${file.name}...`;
-                statusDiv.className = "loading";
-                
-                // Inicializar audio si no existe
-                if (!audioCtx) {
-                    initAudioEngine();
-                }
-                
-                const arrayBuffer = await file.arrayBuffer();
-                sf2Synth = new SoundFont2(audioCtx, arrayBuffer);
-                sf2Synth.connect(mainMasterGain);
-                
-                sf2Loaded = true;
-                currentPreset = 'sf2';
-                
-                // Actualizar el texto del select para mostrar el nombre del archivo
-                const importOption = presetSelect.querySelector('option[value="import-sf2"]');
-                importOption.textContent = `✅ ${file.name}`;
-                presetSelect.value = 'import-sf2';
-                
-                statusDiv.textContent = `✅ ${file.name} cargado`;
-                statusDiv.className = "connected";
-                
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                
-            } catch (error) {
-                console.error("Error cargando SF2:", error);
-                statusDiv.textContent = "❌ Error: " + error.message;
-                statusDiv.className = "";
-                presetSelect.value = currentPreset;
-            }
-            
-            // Limpiar el input para permitir cargar el mismo archivo otra vez si es necesario
-            fileInput.value = '';
-        });
 
         function initAudioEngine() {
             if (audioCtx) return;
@@ -343,6 +244,7 @@
             mainMasterGain.connect(dryGain);
             mainMasterGain.connect(convolverNode);
             convolverNode.connect(wetGain);
+
             dryGain.connect(audioCtx.destination);
             wetGain.connect(audioCtx.destination);
         }
@@ -354,6 +256,7 @@
         });
 
         function createReverbImpulse() {
+            if (!audioCtx) return;
             const rate = audioCtx.sampleRate;
             const length = rate * 2.0; 
             const impulse = audioCtx.createBuffer(2, length, rate);
@@ -381,7 +284,9 @@
         function releaseSustainedNotes() {
             sustainedNotes.forEach(note => {
                 const keyElement = midiElements[note];
-                if (keyElement) keyElement.classList.remove('active');
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
                 if (keyElement && !keyElement.hasAttribute('data-pressed')) {
                     stopNoteInstance(note, true);
                 }
@@ -412,6 +317,7 @@
                 
                 key.innerHTML = `<span>${noteNames[noteInOctave]}</span><span style="font-size:0.5rem; opacity:0.6;">${octave}</span>`;
 
+                // Eventos de Mouse
                 key.addEventListener('mousedown', () => {
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
@@ -427,6 +333,7 @@
                     }
                 });
 
+                // Eventos Táctiles (Móviles/Tablets)
                 key.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     key.setAttribute('data-pressed', 'true');
@@ -463,21 +370,7 @@
             sustainedNotes.delete(note);
 
             if (activeOscillators[note]) stopNoteInstance(note, false);
-            if (activeVoices[note]) stopNoteInstance(note, false);
-
-            // ⭐ DECIDIR QUÉ MOTOR USAR SEGÚN EL PRESET ACTIVO
-            if (sf2Loaded && sf2Synth) {
-                // Usar SoundFont2
-                try {
-                    sf2Synth.noteOn(0, note, velocity / 127);
-                    activeVoices[note] = true;
-                } catch (e) {
-                    console.warn("Error SF2 nota", note, e);
-                }
-            } else {
-                // Usar sintetizador de osciladores
-                activeOscillators[note] = playPianoNote(note, velocity, currentPreset);
-            }
+            activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
 
             if (fromMouse && activeMidiOutput) {
                 activeMidiOutput.send([144, note, velocity]);
@@ -486,6 +379,8 @@
 
         function noteOff(note, fromMouse = false) {
             const keyElement = midiElements[note];
+            
+            // Solo quitamos el color si NO hay sustain activo
             if (!sustainActive && keyElement) {
                 keyElement.classList.remove('active');
             }
@@ -502,7 +397,6 @@
         }
 
         function stopNoteInstance(note, gradualRelease = true) {
-            // Detener osciladores (sintetizador)
             if (activeOscillators[note]) {
                 const { oscs, gainNode } = activeOscillators[note];
                 const now = audioCtx.currentTime;
@@ -516,23 +410,13 @@
                     oscs.forEach(o => { 
                         try { 
                             o.stop(); 
-                            o.disconnect();
+                            o.disconnect(); // Previene fugas de memoria
                         } catch(e){} 
                     });
-                    gainNode.disconnect();
+                    gainNode.disconnect(); // Previene fugas de memoria
                 }, releaseTime * 1000 + 100);
 
                 delete activeOscillators[note];
-            }
-            
-            // Detener voces SF2
-            if (activeVoices[note] && sf2Synth) {
-                try {
-                    sf2Synth.noteOff(0, note);
-                } catch (e) {
-                    console.warn("Error soltando nota SF2", note, e);
-                }
-                delete activeVoices[note];
             }
         }
 
@@ -627,8 +511,7 @@
                 gainNode.gain.linearRampToValueAtTime(0.45 * velocityScale, now + 0.01);
                 gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.0);
 
-                osc1.start(now);
-                osc2.start(now);
+                osc1.start(now); osc2.start(now);
             } else if (preset === 'honkytonk') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
@@ -645,8 +528,7 @@
                 gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.01);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
 
-                osc1.start(now);
-                osc2.start(now);
+                osc1.start(now); osc2.start(now);
             } else if (preset === 'synthpad') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
@@ -669,8 +551,7 @@
                 gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.2);
                 gainNode.gain.exponentialRampToValueAtTime(0.25 * velocityScale, now + 2.5);
 
-                osc1.start(now);
-                osc2.start(now);
+                osc1.start(now); osc2.start(now);
             } else if (preset === 'harpsichord') {
                 const osc1 = audioCtx.createOscillator();
                 const osc2 = audioCtx.createOscillator();
@@ -692,8 +573,7 @@
                 gainNode.gain.linearRampToValueAtTime(0.25 * velocityScale, now + 0.005);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
 
-                osc1.start(now);
-                osc2.start(now);
+                osc1.start(now); osc2.start(now);
             }
 
             return { oscs, gainNode };
@@ -786,6 +666,7 @@
             }
         }
 
+        // Desbloquear audio al primer clic en cualquier parte de la página
         document.addEventListener('click', () => {
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
