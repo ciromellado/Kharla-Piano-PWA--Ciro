@@ -1,63 +1,52 @@
-const CACHE_NAME = 'kharla-piano-v13'; // ⭐ IMPORTANTE: Cambiado a v10 para forzar actualización
+const CACHE_NAME = 'kharla-piano-v14';
+
+// Lista de archivos estáticos que componen la PWA para que funcione offline
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './images/icon-piano192.png',
-  './images/icon-piano512.png'
+  './images/icon-piano192.png'
 ];
 
-// 1. Instalar el Service Worker y cachear los archivos base
+// Evento de Instalación: Se descargan y almacenan en caché los recursos estáticos
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('[Service Worker] Instalando y cacheando recursos');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting(); // Forza la activación inmediata
+  self.skipWaiting();
 });
 
-// 2. Activar y limpiar cachés antiguas (v9, v8, etc.)
+// Evento de Activación: Limpia cachés antiguas si actualizas la versión del SW
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
-      return Promise.all(keyList.map((key) => {
-        if (key !== CACHE_NAME) {
-          console.log('Borrando caché vieja:', key);
-          return caches.delete(key);
-        }
-      }));
+      return Promise.all(
+        keyList.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[Service Worker] Eliminando caché antigua:', key);
+            return caches.delete(key);
+          }
+        })
+      );
     })
   );
-  self.clients.claim(); // Toma el control de todas las pestañas abiertas inmediatamente
+  self.clients.claim();
 });
 
-// 3. Estrategia de Fetch CORREGIDA
+// Evento Fetch: Intercepta las peticiones de red y responde con la caché o la red
 self.addEventListener('fetch', (event) => {
-  // Si la petición es para un documento HTML (como index.html)
-  if (event.request.mode === 'navigate' || (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
-    
-    event.respondWith(
-      fetch(event.request) // ⭐ INTENTAR RED PRIMERO
-        .then((networkResponse) => {
-          // Si la red funciona, guardamos la nueva versión en el caché para la próxima
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-        })
-        .catch(() => {
-          // ⭐ Si no hay internet (offline), usamos el caché como respaldo
-          return caches.match(event.request);
-        })
-    );
-    
-  } else {
-    // Para imágenes, CSS, JS, iconos: Usamos Cache First (es más rápido y no cambia tanto)
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request);
-      })
-    );
-  }
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      // Si el recurso está en caché, lo devuelve; si no, lo busca en la red
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).catch(() => {
+        // Opcional: Podrías retornar una página offline genérica si falla la red y no está en caché
+      });
+    })
+  );
 });
