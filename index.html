@@ -560,5 +560,24 @@
             }
         }, { once: true });
     </script>
+    <script>
+// Forzar actualización del Service Worker al cargar la página
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+            registration.unregister(); // Desregistra todos los SW
+        }
+    });
+    
+    // Limpiar todos los caches
+    if ('caches' in window) {
+        caches.keys().then(function(cacheNames) {
+            cacheNames.forEach(function(cacheName) {
+                caches.delete(cacheName);
+            });
+        });
+    }
+}
+</script>
 </body>
 </html>
