@@ -396,30 +396,35 @@
             }
         }
 
-        function stopNoteInstance(note, gradualRelease = true) {
+       function stopNoteInstance(note, gradualRelease = true) {
             if (activeOscillators[note]) {
-                const { oscs, gainNode } = activeOscillators[note];
+                const { oscs, gainNode, filter } = activeOscillators[note];
                 const now = audioCtx.currentTime;
-                const releaseTime = gradualRelease ? 2.2 : 0.3; 
+                const releaseTime = gradualRelease ? 1.5 : 0.1; // Reducimos un poco el tiempo de release para liberar más rápido
 
-                gainNode.gain.cancelScheduledValues(now);
-                gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+                try {
+                    gainNode.gain.cancelScheduledValues(now);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
+                } catch (e) {}
 
+                // Limpieza inmediata y segura para evitar saturación en Firefox
                 setTimeout(() => {
-                    oscs.forEach(o => { 
-                        try { 
-                            o.stop(); 
-                            o.disconnect(); // Previene fugas de memoria
-                        } catch(e){} 
+                    oscs.forEach(o => {
+                        try {
+                            o.stop();
+                            o.disconnect();
+                        } catch (e) {}
                     });
-                    gainNode.disconnect(); // Previene fugas de memoria
-                }, releaseTime * 1000 + 100);
+                    try {
+                        gainNode.disconnect();
+                        if (filter) filter.disconnect();
+                    } catch (e) {}
+                }, (releaseTime * 1000) + 50);
 
                 delete activeOscillators[note];
             }
         }
-
         function playPianoNote(midiNote, velocity, preset) {
             const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
             const now = audioCtx.currentTime;
