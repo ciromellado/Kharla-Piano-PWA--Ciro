@@ -1,4 +1,6 @@
 <img width="400" height="172" alt="kharla-piano ix-300" src="https://github.com/user-attachments/assets/95b71960-9b2d-4d8f-978f-855aba3e6f25" />
+
+
 # 🎹 Kharla Piano iX-300 - Ciro
 
 <div align="center">
