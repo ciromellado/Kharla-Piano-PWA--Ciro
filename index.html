@@ -344,41 +344,49 @@
             }
         });
 
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) { presetSelect.value = currentPreset; return; }
-            if (!file.name.toLowerCase().endsWith('.sf2')) {
-                alert('Por favor, selecciona un archivo .sf2 válido');
-                presetSelect.value = currentPreset;
-                return;
-            }
+       fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) { presetSelect.value = currentPreset; return; }
+    if (!file.name.toLowerCase().endsWith('.sf2')) {
+        alert('Por favor, selecciona un archivo .sf2 válido');
+        presetSelect.value = currentPreset;
+        return;
+    }
+    
+    try {
+        statusDiv.textContent = `⏳ Procesando ${file.name}...`;
+        statusDiv.className = "loading";
+        
+        // Usar FileReader para leer el archivo local como ArrayBuffer
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
             
-            try {
-                statusDiv.textContent = `⏳ Procesando ${file.name}...`;
-                statusDiv.className = "loading";
+            // ⭐ Forma compatible con las versiones actuales de WebAudioFont para parsear SoundFonts
+            player.loader.decodeAudio(audioCtx, arrayBuffer, (preset) => {
+                sf2Preset = preset;
+                isSf2Loaded = true;
+                currentPreset = 'sf2';
                 
-                const objectUrl = URL.createObjectURL(file);
-                player.loader.startLoad();
-                player.loader.loadSoundFont(objectUrl, (preset) => {
-                    sf2Preset = preset;
-                    isSf2Loaded = true;
-                    currentPreset = 'sf2';
-                    
-                    const importOption = presetSelect.querySelector('option[value="import-sf2"]');
-                    importOption.textContent = `✅ ${file.name}`;
-                    
-                    statusDiv.textContent = `✅ ${file.name} cargado`;
-                    statusDiv.className = "";
-                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-                });
-                fileInput.value = '';
-            } catch (error) {
-                console.error("Error cargando SF2:", error);
-                statusDiv.textContent = "❌ Error al cargar el archivo";
-                statusDiv.className = "error";
-                presetSelect.value = currentPreset;
-            }
-        });
+                const importOption = presetSelect.querySelector('option[value="import-sf2"]');
+                importOption.textContent = `✅ ${file.name}`;
+                
+                statusDiv.textContent = `✅ ${file.name} cargado`;
+                statusDiv.className = "";
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            });
+        };
+        
+        reader.readAsArrayBuffer(file);
+        fileInput.value = '';
+        
+    } catch (error) {
+        console.error("Error cargando SF2:", error);
+        statusDiv.textContent = "❌ Error al cargar el archivo";
+        statusDiv.className = "error";
+        presetSelect.value = currentPreset;
+    }
+});
 
         // 5. MOTOR DE AUDIO
         function initAudioEngine() {
