@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kharla-piano-v10'; // ⭐ IMPORTANTE: Cambiado a v10 para forzar actualización
+const CACHE_NAME = 'kharla-piano-v11'; // ⭐ IMPORTANTE: Cambiado a v10 para forzar actualización
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
