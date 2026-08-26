@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kharla-piano-v14';
+const CACHE_NAME = 'kharla-piano-v15';
 
 // Lista de archivos estáticos que componen la PWA para que funcione offline
 const ASSETS_TO_CACHE = [
