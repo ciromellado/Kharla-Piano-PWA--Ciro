@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kharla Piano PWA</title>
-    <meta name="theme-color" content="#1e1e1e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/icon-piano192.png">
+    <title>Kharla Piano - Importar SF2</title>
+    
+    <!-- CARGAR SOUNDFONT2 DESDE CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/soundfont2@0.4.0/dist/soundfont2.min.js"></script>
+    
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -21,7 +20,6 @@
             min-height: 100vh;
             margin: 0;
             overflow-x: hidden;
-            /* Prevenir selección de texto al tocar rápido en móviles */
             -webkit-user-select: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -44,6 +42,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         h1 { margin: 0; font-size: 1.5rem; }
         
@@ -59,6 +59,11 @@
             color: #4caf50;
             background: rgba(76, 175, 80, 0.1);
             border-color: rgba(76, 175, 80, 0.3);
+        }
+        #status.loading {
+            color: #2196f3;
+            background: rgba(33, 150, 243, 0.1);
+            border-color: rgba(33, 150, 243, 0.3);
         }
         
         .controls-row {
@@ -92,15 +97,36 @@
             cursor: pointer;
             min-width: 140px;
         }
-        select:hover, input[type="range"]:hover {
-            border-color: #00bcd4;
+        
+        /* ⭐ ESTILO PARA EL BOTÓN DE IMPORTAR */
+        .import-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .import-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .import-btn:active {
+            transform: translateY(0);
+        }
+        .import-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .piano-wrapper {
             overflow-x: auto;
             max-width: 1100px;
             padding-bottom: 10px;
-            /* Suavizar el scroll en móviles */
             -webkit-overflow-scrolling: touch;
         }
         .piano {
@@ -123,7 +149,7 @@
             font-size: 0.6rem;
             font-weight: 600;
             box-sizing: border-box;
-            transition: background 0.1s, box-shadow 0.1s;
+            transition: background 0.1s;
         }
         .white {
             width: 34px;
@@ -133,11 +159,9 @@
             color: #555;
             z-index: 1;
         }
-        .white:hover { background: #f0f0f0; }
         .white.active {
             background: #00bcd4 !important;
             color: #000 !important;
-            box-shadow: inset 0 4px 6px rgba(0,0,0,0.3);
         }
         .black {
             width: 20px;
@@ -148,13 +172,15 @@
             border-radius: 0 0 3px 3px;
             border: 1px solid #000;
             font-size: 0.5rem;
-            padding-bottom: 6px;
         }
-        .black:hover { background: #333; }
         .black.active {
             background: #ff5722 !important;
             color: #fff !important;
-            box-shadow: inset 0 3px 5px rgba(0,0,0,0.5);
+        }
+        
+        /* Ocultar el input file real */
+        #file-input {
+            display: none;
         }
     </style>
 </head>
@@ -165,8 +191,14 @@
     <div class="vst-container">
         <div class="header-panel">
             <div class="title-bar">
-                <h1>Kharla Piano PWA - Ciro</h1>
-                <div id="status">Iniciando Web MIDI...</div>
+                <h1>Kharla Piano - Ciro</h1>
+                <div id="status">⚠️ Importa un archivo SF2 para comenzar</div>
+                
+                <!-- ⭐ BOTÓN PARA IMPORTAR SF2 -->
+                <button class="import-btn" id="import-btn" onclick="document.getElementById('file-input').click()">
+                    📁 Importar SoundFont (.sf2)
+                </button>
+                <input type="file" id="file-input" accept=".sf2" />
             </div>
             
             <div class="controls-row">
@@ -180,32 +212,18 @@
                 <div class="control-group">
                     <label for="midi-output">Salida MIDI USB:</label>
                     <select id="midi-output">
-                        <option value="">(Ninguna / Opcional)</option>
-                    </select>
-                </div>
-                
-                <div class="control-group">
-                    <label for="preset">Tipo de Piano:</label>
-                    <select id="preset">
-                        <option value="grand">Grand Acoustic</option>
-                        <option value="bright">Bright Piano</option>
-                        <option value="warm">Warm Piano</option>
-                        <option value="electric">Electric (Rhodes)</option>
-                        <option value="upright">Upright Piano</option>
-                        <option value="honkytonk">Honky Tonk</option>
-                        <option value="synthpad">Synth Pad Piano</option>
-                        <option value="harpsichord">Harpsichord (Clavicémbalo)</option>
+                        <option value="">(Ninguna)</option>
                     </select>
                 </div>
                 
                 <div class="control-group">
                     <label for="volume">Volumen Master:</label>
-                    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.7">
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
                 </div>
 
                 <div class="control-group">
-                    <label for="reverb">Resonancia (Reverb):</label>
-                    <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.4">
+                    <label for="reverb">Reverb:</label>
+                    <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.3">
                 </div>
             </div>
         </div>
@@ -218,16 +236,17 @@
     <script>
         const statusDiv = document.getElementById('status');
         const keyboardDiv = document.getElementById('keyboard');
-        const presetSelect = document.getElementById('preset');
         const reverbSlider = document.getElementById('reverb');
         const volumeSlider = document.getElementById('volume');
         const midiInputSelect = document.getElementById('midi-input');
         const midiOutputSelect = document.getElementById('midi-output');
+        const fileInput = document.getElementById('file-input');
+        const importBtn = document.getElementById('import-btn');
 
-        const startNote = 36; // C2 (61 teclas exactas)
+        const startNote = 36;
         const numKeys = 61;   
         const midiElements = {};
-        const activeOscillators = {};
+        const activeVoices = {};
         
         let sustainActive = false;
         const sustainedNotes = new Set();
@@ -240,28 +259,70 @@
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
+        
+        let sf2Synth = null;
+        let sf2Loaded = false;
 
-        function initAudioEngine() {
-            if (audioCtx) return;
-            audioCtx = new AudioContext();
+        // ⭐ FUNCIÓN PARA CARGAR SF2 DESDE ARCHIVO LOCAL
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.sf2')) {
+                alert('Por favor selecciona un archivo .sf2 válido');
+                return;
+            }
+            
+            try {
+                statusDiv.textContent = `Cargando ${file.name}...`;
+                statusDiv.className = "loading";
+                importBtn.disabled = true;
+                
+                // Inicializar contexto de audio si no existe
+                if (!audioCtx) {
+                    audioCtx = new AudioContext();
+                    
+                    mainMasterGain = audioCtx.createGain();
+                    mainMasterGain.gain.value = parseFloat(volumeSlider.value);
 
-            mainMasterGain = audioCtx.createGain();
-            mainMasterGain.gain.value = parseFloat(volumeSlider.value);
+                    convolverNode = audioCtx.createConvolver();
+                    createReverbImpulse();
 
-            convolverNode = audioCtx.createConvolver();
-            createReverbImpulse();
+                    wetGain = audioCtx.createGain();
+                    dryGain = audioCtx.createGain();
+                    updateReverbMix(parseFloat(reverbSlider.value));
 
-            wetGain = audioCtx.createGain();
-            dryGain = audioCtx.createGain();
-            updateReverbMix(parseFloat(reverbSlider.value));
-
-            mainMasterGain.connect(dryGain);
-            mainMasterGain.connect(convolverNode);
-            convolverNode.connect(wetGain);
-
-            dryGain.connect(audioCtx.destination);
-            wetGain.connect(audioCtx.destination);
-        }
+                    mainMasterGain.connect(dryGain);
+                    mainMasterGain.connect(convolverNode);
+                    convolverNode.connect(wetGain);
+                    dryGain.connect(audioCtx.destination);
+                    wetGain.connect(audioCtx.destination);
+                }
+                
+                // Leer el archivo como ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // Crear el sintetizador SF2
+                sf2Synth = new SoundFont2(audioCtx, arrayBuffer);
+                sf2Synth.connect(mainMasterGain);
+                
+                sf2Loaded = true;
+                statusDiv.textContent = `✅ ${file.name} cargado correctamente`;
+                statusDiv.className = "connected";
+                importBtn.disabled = false;
+                
+                // Desbloquear audio
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                
+            } catch (error) {
+                console.error("Error cargando SF2:", error);
+                statusDiv.textContent = "❌ Error al cargar el archivo";
+                statusDiv.className = "";
+                importBtn.disabled = false;
+            }
+        });
 
         volumeSlider.addEventListener('input', (e) => {
             if (mainMasterGain && audioCtx) {
@@ -270,7 +331,6 @@
         });
 
         function createReverbImpulse() {
-            if (!audioCtx) return;
             const rate = audioCtx.sampleRate;
             const length = rate * 2.0; 
             const impulse = audioCtx.createBuffer(2, length, rate);
@@ -295,13 +355,10 @@
             updateReverbMix(parseFloat(e.target.value));
         });
 
-        // CORRECCIÓN 4b: Ahora también quita el color visual al soltar el pedal
         function releaseSustainedNotes() {
             sustainedNotes.forEach(note => {
                 const keyElement = midiElements[note];
-                if (keyElement) {
-                    keyElement.classList.remove('active');
-                }
+                if (keyElement) keyElement.classList.remove('active');
                 if (keyElement && !keyElement.hasAttribute('data-pressed')) {
                     stopNoteInstance(note, true);
                 }
@@ -332,7 +389,6 @@
                 
                 key.innerHTML = `<span>${noteNames[noteInOctave]}</span><span style="font-size:0.5rem; opacity:0.6;">${octave}</span>`;
 
-                // Eventos de Mouse
                 key.addEventListener('mousedown', () => {
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
@@ -348,9 +404,8 @@
                     }
                 });
 
-                // CORRECCIÓN 2: SOPORTE TÁCTIL PARA MÓVILES Y TABLETS
                 key.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // Evita zoom o scroll accidental
+                    e.preventDefault();
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
                 }, { passive: false });
@@ -376,7 +431,11 @@
         buildKeyboard();
 
         function noteOn(note, velocity, fromMouse = false) {
-            initAudioEngine();
+            if (!sf2Loaded) {
+                alert('Primero importa un archivo SoundFont (.sf2)');
+                return;
+            }
+            
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
             const keyElement = midiElements[note];
@@ -384,15 +443,22 @@
 
             sustainedNotes.delete(note);
 
-            if (activeOscillators[note]) stopNoteInstance(note, false);
-            activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
+            if (activeVoices[note]) stopNoteInstance(note, false);
+
+            if (sf2Synth) {
+                try {
+                    sf2Synth.noteOn(0, note, velocity / 127);
+                    activeVoices[note] = true;
+                } catch (e) {
+                    console.warn("Error al reproducir nota", note, e);
+                }
+            }
 
             if (fromMouse && activeMidiOutput) {
                 activeMidiOutput.send([144, note, velocity]);
             }
         }
 
-        // CORRECCIÓN 4a: Solo quitamos el color si NO hay sustain activo
         function noteOff(note, fromMouse = false) {
             const keyElement = midiElements[note];
             if (!sustainActive && keyElement) {
@@ -410,198 +476,22 @@
             }
         }
 
-        // CORRECCIÓN 3: Desconexión de nodos para evitar fugas de memoria
         function stopNoteInstance(note, gradualRelease = true) {
-            if (activeOscillators[note]) {
-                const { oscs, gainNode } = activeOscillators[note];
-                const now = audioCtx.currentTime;
-                const releaseTime = gradualRelease ? 2.2 : 0.3; 
-
-                gainNode.gain.cancelScheduledValues(now);
-                gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
-
-                setTimeout(() => {
-                    oscs.forEach(o => { 
-                        try { 
-                            o.stop(); 
-                            o.disconnect(); // Desconectar oscilador
-                        } catch(e){} 
-                    });
-                    gainNode.disconnect(); // Desconectar nodo de ganancia
-                }, releaseTime * 1000 + 100);
-
-                delete activeOscillators[note];
+            if (activeVoices[note]) {
+                try {
+                    sf2Synth.noteOff(0, note);
+                } catch (e) {
+                    console.warn("Error al soltar nota", note, e);
+                }
+                delete activeVoices[note];
             }
         }
 
-        function playPianoNote(midiNote, velocity, preset) {
-            const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-            const now = audioCtx.currentTime;
-            const velocityScale = (velocity / 127);
-
-            const gainNode = audioCtx.createGain();
-            gainNode.connect(mainMasterGain);
-
-            let oscs = [];
-
-            if (preset === 'grand') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle'; osc2.type = 'sine';
-                osc1.frequency.value = freq; osc2.frequency.value = freq * 2;
-                osc1.connect(gainNode); osc2.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
-                gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.5);
-                
-                osc1.start(now); osc2.start(now);
-            } else if (preset === 'bright') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sawtooth'; osc2.type = 'triangle';
-                osc1.frequency.value = freq; osc2.frequency.value = freq;
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(freq * 6, now);
-                filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.8);
-
-                osc1.connect(filter); osc2.connect(filter); filter.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.3 * velocityScale, now + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.2);
-
-                osc1.start(now); osc2.start(now);
-            } else if (preset === 'warm') {
-                const osc1 = audioCtx.createOscillator();
-                osc1.type = 'sine'; osc1.frequency.value = freq;
-                
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass'; filter.frequency.value = freq * 2.5;
-
-                osc1.connect(filter); filter.connect(gainNode);
-                oscs = [osc1];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.5 * velocityScale, now + 0.04);
-                gainNode.gain.exponentialRampToValueAtTime(0.04, now + 1.8);
-
-                osc1.start(now);
-            } else if (preset === 'electric') {
-                const osc1 = audioCtx.createOscillator();
-                osc1.type = 'sine'; osc1.frequency.value = freq;
-
-                const mod = audioCtx.createOscillator();
-                const modGain = audioCtx.createGain();
-                mod.type = 'sine'; mod.frequency.value = freq * 2;
-                modGain.gain.value = 15;
-
-                mod.connect(modGain); modGain.connect(osc1.frequency);
-                osc1.connect(gainNode);
-                oscs = [osc1, mod];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
-                gainNode.gain.exponentialRampToValueAtTime(0.06, now + 1.3);
-
-                osc1.start(now); mod.start(now);
-            } else if (preset === 'upright') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle';
-                osc2.type = 'sine';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq * 1.002;
-                
-                osc1.connect(gainNode);
-                osc2.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.45 * velocityScale, now + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.0);
-
-                osc1.start(now);
-                osc2.start(now);
-            } else if (preset === 'honkytonk') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle';
-                osc2.type = 'triangle';
-                osc1.frequency.value = freq * 0.995;
-                osc2.frequency.value = freq * 1.005;
-                
-                osc1.connect(gainNode);
-                osc2.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
-
-                osc1.start(now);
-                osc2.start(now);
-            } else if (preset === 'synthpad') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sine';
-                osc2.type = 'sawtooth';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq;
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(freq * 2, now);
-                filter.frequency.linearRampToValueAtTime(freq * 4, now + 0.5);
-
-                osc1.connect(gainNode);
-                osc2.connect(filter);
-                filter.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.2);
-                gainNode.gain.exponentialRampToValueAtTime(0.25 * velocityScale, now + 2.5);
-
-                osc1.start(now);
-                osc2.start(now);
-            } else if (preset === 'harpsichord') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc2.type = 'square';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq * 2;
-                
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 800;
-
-                osc1.connect(filter);
-                osc2.connect(filter);
-                filter.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.25 * velocityScale, now + 0.005);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-
-                osc1.start(now);
-                osc2.start(now);
-            }
-
-            return { oscs, gainNode };
-        }
-
+        // MIDI
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
         } else {
-            statusDiv.textContent = "Web MIDI no soportado en este navegador.";
+            statusDiv.textContent = "Web MIDI no soportado.";
         }
 
         function onMIDISuccess(midiAccess) {
@@ -611,7 +501,7 @@
         }
 
         function onMIDIFailure() {
-            statusDiv.textContent = "Error al inicializar puertos MIDI.";
+            statusDiv.textContent = "Error al inicializar MIDI.";
         }
 
         function updateMidiPorts() {
@@ -621,23 +511,16 @@
 
             if (inputs.length === 0) {
                 midiInputSelect.add(new Option("Sin entradas USB", ""));
-                statusDiv.textContent = "Conecta la entrada USB de tu piano.";
-                statusDiv.className = "";
             } else {
                 inputs.forEach(input => midiInputSelect.add(new Option(input.name, input.id)));
                 if (inputs.some(i => i.id === currentInId)) midiInputSelect.value = currentInId;
-                statusDiv.textContent = "Kharla iX300 Conectado.";
-                statusDiv.className = "connected";
             }
             connectInput();
 
             const outputs = Array.from(currentMidiAccess.outputs.values());
             const currentOutId = midiOutputSelect.value;
-            midiOutputSelect.innerHTML = '<option value="">(Sin Salida USB / Desactivada)</option>';
-
-            outputs.forEach(output => {
-                midiOutputSelect.add(new Option(output.name, output.id));
-            });
+            midiOutputSelect.innerHTML = '<option value="">(Sin Salida)</option>';
+            outputs.forEach(output => midiOutputSelect.add(new Option(output.name, output.id)));
             if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
             connectOutput();
         }
@@ -662,9 +545,7 @@
             const selectedId = midiOutputSelect.value;
             if (selectedId && currentMidiAccess) {
                 const output = currentMidiAccess.outputs.get(selectedId);
-                if (output) {
-                    activeMidiOutput = output;
-                }
+                if (output) activeMidiOutput = output;
             }
         }
 
@@ -675,14 +556,11 @@
             const statusByte = message.data[0];
             const data1 = message.data[1];
             const data2 = message.data[2];
-
             const command = statusByte & 0xF0; 
 
             if (command === 0xB0 && data1 === 64) {
                 sustainActive = (data2 >= 64);
-                if (!sustainActive) {
-                    releaseSustainedNotes();
-                }
+                if (!sustainActive) releaseSustainedNotes();
                 if (activeMidiOutput) activeMidiOutput.send(message.data);
                 return;
             }
@@ -696,7 +574,6 @@
             }
         }
 
-        // CORRECCIÓN 1: Desbloquear audio al primer clic en cualquier parte de la página
         document.addEventListener('click', () => {
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
