@@ -7,9 +7,22 @@
     <meta name="theme-color" content="#1e1e1e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/icon-piano192.png">
     
+    <!-- Carga de smplr (SplendidGrandPiano) vía módulo ES -->
+    <script type="module">
+        async function loadSmplr() {
+            try {
+                const mod = await import("https://esm.sh/smplr@0.20.0?target=es2022");
+                // Aseguramos que tomamos la clase correcta, ya sea exportada con nombre o por defecto
+                window.SplendidGrandPiano = mod.SplendidGrandPiano || mod.default;
+                console.log("✅ smplr cargado. Tipo:", typeof window.SplendidGrandPiano);
+            } catch (e) {
+                console.error("❌ Error cargando smplr:", e);
+            }
+        }
+        loadSmplr();
+    </script>
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -34,6 +47,7 @@
             border: 1px solid #333;
             max-width: 95%;
             margin: 20px 0;
+            box-sizing: border-box;
         }
         .title-bar {
             display: flex;
@@ -53,6 +67,45 @@
             border-radius: 6px;
             border: 1px solid rgba(76, 175, 80, 0.3);
         }
+
+        .chord-display-panel {
+            background: #282828;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        .chord-info-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .chord-label {
+            font-size: 0.75rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .chord-name {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #00bcd4;
+            min-height: 35px;
+        }
+        .notes-detected {
+            font-size: 0.9rem;
+            color: #bbb;
+            background: #1a1a1a;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #3a3a3a;
+        }
         
         .controls-row {
             display: flex;
@@ -63,6 +116,7 @@
             border-radius: 8px;
             border: 1px solid #333;
             align-items: center;
+            margin-bottom: 15px;
         }
         
         .control-group {
@@ -94,10 +148,9 @@
             max-width: 100%;
             padding-bottom: 10px;
             -webkit-overflow-scrolling: touch;
-            margin-top: 20px;
         }
         .piano {
-            display: flex;
+            display: block;
             position: relative;
             background: #000;
             padding: 10px;
@@ -119,7 +172,7 @@
             transition: background 0.1s;
         }
         .white {
-            width: 34px;
+            width: 36px;
             height: 180px;
             background: #fdfdfd;
             border: 1px solid #b5b5b5;
@@ -131,7 +184,7 @@
             color: #000 !important;
         }
         .black {
-            width: 20px;
+            width: 22px;
             height: 110px;
             background: #222;
             color: #888;
@@ -148,12 +201,23 @@
 </head>
 <body>
     
-    <h2 style="color: #000000;">Kharla Web Solution</h2>
+    <h2 style="color: #000000; margin-bottom: 10px;">Kharla Web Solution</h2>
 
     <div class="vst-container">
         <div class="title-bar">
             <h1>🎹 Kharla Piano PWA - Ciro</h1>
             <div id="status">✅ Listo para tocar</div>
+        </div>
+
+        <div class="chord-display-panel">
+            <div class="chord-info-group">
+                <span class="chord-label">Acorde Detectado</span>
+                <div id="chord-name" class="chord-name">Esperando notas...</div>
+            </div>
+            <div class="chord-info-group">
+                <span class="chord-label">Notas Activas</span>
+                <div id="notes-detected" class="notes-detected">Ninguna</div>
+            </div>
         </div>
         
         <div class="controls-row">
@@ -174,14 +238,33 @@
             <div class="control-group">
                 <label for="preset">Tipo de Sonido:</label>
                 <select id="preset">
-                    <option value="grand">Grand Acoustic</option>
-                    <option value="bright">Bright Piano</option>
-                    <option value="warm">Warm Piano</option>
-                    <option value="electric">Electric (Rhodes)</option>
-                    <option value="upright">Upright Piano</option>
-                    <option value="honkytonk">Honky Tonk</option>
-                    <option value="synthpad">Synth Pad Piano</option>
-                    <option value="harpsichord">Harpsichord (Clavicémbalo)</option>
+                    <optgroup label="Pianos Acústicos">
+                        <option value="splendid">🎹 Splendid Grand Piano (Samples Reales)</option>
+                        <option value="grand">Grand Acoustic (Sintetizado)</option>
+                        <option value="bright">Bright Piano</option>
+                        <option value="warm">Warm Piano</option>
+                    </optgroup>
+                    <optgroup label="Pianos Eléctricos">
+                        <option value="electric">Electric Piano (Rhodes)</option>
+                        <option value="wurlitzer">Wurlitzer (Vintage)</option>
+                    </optgroup>
+                    <optgroup label="Acordeones Colombianos">
+                        <option value="accordion_vallenato">Acordeón Vallenato (Típico)</option>
+                        <option value="accordion_cumbia">Acordeón de Cumbia / Bajos</option>
+                    </optgroup>
+                    <optgroup label="Órganos">
+                        <option value="hammond">Órgano Hammond (Rock/Jazz)</option>
+                        <option value="pipe_organ">Órgano de Tubos (Litúrgico)</option>
+                    </optgroup>
+                    <optgroup label="Cuerdas (Strings)">
+                        <option value="string1">String 1 (Ensemble Cálido)</option>
+                        <option value="string2">String 2 (Brillante / Staccato)</option>
+                    </optgroup>
+                    <optgroup label="Metales y Vientos">
+                        <option value="trumpet">Trompeta (Brass)</option>
+                        <option value="saxophone">Saxofón (Reed)</option>
+                        <option value="trombone">Trombón (Deep Brass)</option>
+                    </optgroup>
                 </select>
             </div>
             
@@ -209,12 +292,15 @@
         const volumeSlider = document.getElementById('volume');
         const midiInputSelect = document.getElementById('midi-input');
         const midiOutputSelect = document.getElementById('midi-output');
+        const chordNameDisplay = document.getElementById('chord-name');
+        const notesDetectedDisplay = document.getElementById('notes-detected');
 
-        const startNote = 36; // C2 (61 teclas exactas)
-        const numKeys = 61;   
+        const startNote = 36; // C2 (61 teclas)
+        const numKeys = 61;    
         const midiElements = {};
         const activeOscillators = {};
-        
+        const activeNotesSet = new Set();
+
         let sustainActive = false;
         const sustainedNotes = new Set();
 
@@ -226,6 +312,9 @@
 
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
+
+        let splendidPiano = null;
+        let splendidLoading = false;
 
         function initAudioEngine() {
             if (audioCtx) return;
@@ -281,6 +370,65 @@
             updateReverbMix(parseFloat(e.target.value));
         });
 
+        // --- CARGA LAZY DE SPLENDID GRAND PIANO (CORREGIDO CON 'new') ---
+        async function ensureSplendidLoaded() {
+            if (splendidPiano) return splendidPiano;
+            if (splendidLoading) {
+                while (splendidLoading) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                return splendidPiano;
+            }
+            
+            splendidLoading = true;
+            statusDiv.textContent = "⏳ Cargando Splendid Grand Piano...";
+            
+            try {
+                initAudioEngine();
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                
+                let attempts = 0;
+                while (!window.SplendidGrandPiano && attempts < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+                
+                if (!window.SplendidGrandPiano) {
+                    throw new Error("La librería smplr no se cargó. Recarga la página (Ctrl+F5).");
+                }
+                
+                // ¡AQUÍ ESTÁ LA CORRECCIÓN CLAVE! Usamos 'new' porque es un constructor de clase.
+                splendidPiano = new window.SplendidGrandPiano(audioCtx, {
+                    destination: mainMasterGain,
+                    volume: 100,
+                    velocity: 100
+                });
+                
+                await splendidPiano.load;
+                
+                statusDiv.textContent = "✅ Splendid Grand Piano listo";
+                splendidLoading = false;
+                return splendidPiano;
+                
+            } catch (err) {
+                console.error("Error cargando Splendid:", err);
+                statusDiv.textContent = "❌ Error: " + err.message;
+                splendidLoading = false;
+                splendidPiano = null;
+                throw err;
+            }
+        }
+
+        presetSelect.addEventListener('change', async () => {
+            if (presetSelect.value === 'splendid') {
+                try {
+                    await ensureSplendidLoaded();
+                } catch (e) {
+                    // El error ya se muestra en el status
+                }
+            }
+        });
+
         function releaseSustainedNotes() {
             sustainedNotes.forEach(note => {
                 const keyElement = midiElements[note];
@@ -295,7 +443,7 @@
         }
 
         function buildKeyboard() {
-            const whiteKeyWidth = 34;
+            const whiteKeyWidth = 36;
             let whiteIndex = 0;
 
             let totalWhiteKeys = 0;
@@ -317,41 +465,31 @@
                 
                 key.innerHTML = `<span>${noteNames[noteInOctave]}</span><span style="font-size:0.5rem; opacity:0.6;">${octave}</span>`;
 
-                // Eventos de Mouse
-                key.addEventListener('mousedown', () => {
+                const startNoteEvent = (e) => {
+                    if (e.cancelable) e.preventDefault();
                     key.setAttribute('data-pressed', 'true');
                     noteOn(noteNumber, 100, true);
-                });
-                key.addEventListener('mouseup', () => {
+                };
+                const endNoteEvent = (e) => {
+                    if (e.cancelable) e.preventDefault();
                     key.removeAttribute('data-pressed');
                     noteOff(noteNumber, true);
-                });
+                };
+
+                key.addEventListener('mousedown', startNoteEvent);
+                key.addEventListener('mouseup', endNoteEvent);
                 key.addEventListener('mouseleave', () => {
-                    if (key.hasAttribute('data-pressed')) {
-                        key.removeAttribute('data-pressed');
-                        noteOff(noteNumber, true);
-                    }
+                    if (key.hasAttribute('data-pressed')) endNoteEvent(new Event('mouseup'));
                 });
-
-                // Eventos Táctiles (Móviles/Tablets)
-                key.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    key.setAttribute('data-pressed', 'true');
-                    noteOn(noteNumber, 100, true);
-                }, { passive: false });
-
-                key.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    key.removeAttribute('data-pressed');
-                    noteOff(noteNumber, true);
-                });
+                key.addEventListener('touchstart', startNoteEvent, { passive: false });
+                key.addEventListener('touchend', endNoteEvent, { passive: false });
 
                 if (!isBlack) {
                     key.style.left = `${whiteIndex * whiteKeyWidth}px`;
                     keyboardDiv.appendChild(key);
                     whiteIndex++;
                 } else {
-                    key.style.left = `${(whiteIndex * whiteKeyWidth) - 10}px`;
+                    key.style.left = `${(whiteIndex * whiteKeyWidth) - 11}px`;
                     keyboardDiv.appendChild(key);
                 }
 
@@ -367,10 +505,28 @@
             const keyElement = midiElements[note];
             if (keyElement) keyElement.classList.add('active');
 
+            activeNotesSet.add(note);
+            updateChordRecognition();
             sustainedNotes.delete(note);
+            
+            const keysPlaying = Object.keys(activeOscillators);
+            if (keysPlaying.length > 20) {
+                const oldestNote = keysPlaying[0];
+                stopNoteInstance(oldestNote, false);
+            }
 
             if (activeOscillators[note]) stopNoteInstance(note, false);
-            activeOscillators[note] = playPianoNote(note, velocity, presetSelect.value);
+            
+            const currentPreset = presetSelect.value;
+            if (currentPreset === 'splendid') {
+                ensureSplendidLoaded().then(() => {
+                    activeOscillators[note] = playPianoNote(note, velocity, currentPreset);
+                }).catch(() => {
+                    activeOscillators[note] = playPianoNote(note, velocity, 'grand');
+                });
+            } else {
+                activeOscillators[note] = playPianoNote(note, velocity, currentPreset);
+            }
 
             if (fromMouse && activeMidiOutput) {
                 activeMidiOutput.send([144, note, velocity]);
@@ -379,8 +535,9 @@
 
         function noteOff(note, fromMouse = false) {
             const keyElement = midiElements[note];
-            
-            // Solo quitamos el color si NO hay sustain activo
+            activeNotesSet.delete(note);
+            updateChordRecognition();
+
             if (!sustainActive && keyElement) {
                 keyElement.classList.remove('active');
             }
@@ -396,43 +553,98 @@
             }
         }
 
-       function stopNoteInstance(note, gradualRelease = true) {
+        const chordDictionary = {
+            "0,4,7": "Mayor", "0,3,7": "Menor", "0,4,8": "Aumentado (aug)", "0,3,6": "Disminuido (dim)",
+            "0,2,7": "sus2", "0,5,7": "sus4", "0,5,10": "7sus4", "0,2,7,10": "9sus4",
+            "0,4,7,10": "7 (Dominante)", "0,4,7,11": "Maj7", "0,3,7,10": "m7", "0,3,7,11": "mMaj7",
+            "0,3,6,10": "m7(b5) / Semidisminuido", "0,3,6,9": "dim7", "0,4,8,10": "+7 / 7(#5)", "0,4,8,11": "Maj7(#5)",
+            "0,4,7,9": "6", "0,3,7,9": "m6", "0,2,4,7": "add9", "0,2,3,7": "m(add9)",
+            "0,4,7,10,14": "9", "0,4,7,11,14": "Maj9", "0,3,7,10,14": "m9", "0,4,7,10,13": "7(b9)", "0,4,7,10,15": "7(#9)",
+            "0,3,6,10,13": "m9(b5)", "0,3,6,9,13": "dim9",
+            "0,4,7,10,14,17": "11", "0,3,7,10,14,17": "m11", "0,4,7,10,14,21": "13", "0,4,7,11,14,21": "Maj13", "0,3,7,10,14,21": "m13", "0,4,7,10,14,18,21": "13(#11)"
+        };
+
+        function updateChordRecognition() {
+            if (activeNotesSet.size === 0) {
+                chordNameDisplay.textContent = "Esperando notas...";
+                notesDetectedDisplay.textContent = "Ninguna";
+                return;
+            }
+
+            const sortedNotes = Array.from(activeNotesSet).sort((a, b) => a - b);
+            const noteNamesList = sortedNotes.map(n => `${noteNames[n % 12]}${Math.floor(n / 12) - 1}`);
+            notesDetectedDisplay.textContent = noteNamesList.join(", ");
+
+            if (activeNotesSet.size === 1) {
+                chordNameDisplay.textContent = `${noteNames[sortedNotes[0] % 12]} (Nota Individual)`;
+                return;
+            }
+
+            let bestMatch = null;
+            for (let i = 0; i < sortedNotes.length; i++) {
+                const root = sortedNotes[i];
+                const intervals = sortedNotes.map(n => (n - root + 120) % 12).sort((a, b) => a - b);
+                const uniqueIntervals = [];
+                intervals.forEach(iv => { if (!uniqueIntervals.includes(iv)) uniqueIntervals.push(iv); });
+
+                const keyPattern = uniqueIntervals.join(",");
+                if (chordDictionary[keyPattern]) {
+                    const rootName = noteNames[root % 12];
+                    const chordQuality = chordDictionary[keyPattern];
+                    let inversionText = i > 0 ? ` / ${noteNames[sortedNotes[0] % 12]} (Inv)` : "";
+                    bestMatch = `${rootName} ${chordQuality}${inversionText}`;
+                    break;
+                }
+            }
+            chordNameDisplay.textContent = bestMatch || "Acorde avanzado / Abierto";
+        }
+
+        function stopNoteInstance(note, gradualRelease = true) {
             if (activeOscillators[note]) {
-                const { oscs, gainNode, filter } = activeOscillators[note];
-                const now = audioCtx.currentTime;
-                const releaseTime = gradualRelease ? 1.5 : 0.1; // Reducimos un poco el tiempo de release para liberar más rápido
+                const instance = activeOscillators[note];
+                
+                if (instance.isSmplr && typeof instance.stop === 'function') {
+                    instance.stop();
+                } else if (instance.oscs) {
+                    const { oscs, gainNode, filter } = instance;
+                    const now = audioCtx.currentTime;
+                    const releaseTime = gradualRelease ? 0.6 : 0.05; 
 
-                try {
-                    gainNode.gain.cancelScheduledValues(now);
-                    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-                    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
-                } catch (e) {}
-
-                // Limpieza inmediata y segura para evitar saturación en Firefox
-                setTimeout(() => {
-                    oscs.forEach(o => {
-                        try {
-                            o.stop();
-                            o.disconnect();
-                        } catch (e) {}
-                    });
                     try {
-                        gainNode.disconnect();
-                        if (filter) filter.disconnect();
+                        gainNode.gain.cancelScheduledValues(now);
+                        gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + releaseTime);
                     } catch (e) {}
-                }, (releaseTime * 1000) + 50);
 
+                    setTimeout(() => {
+                        oscs.forEach(o => {
+                            try { o.stop(); o.disconnect(); } catch (e) {}
+                        });
+                        try {
+                            gainNode.disconnect();
+                            if (filter) filter.disconnect();
+                        } catch (e) {}
+                    }, (releaseTime * 1000) + 20);
+                }
                 delete activeOscillators[note];
             }
         }
+        
         function playPianoNote(midiNote, velocity, preset) {
+            if (preset === 'splendid' && splendidPiano) {
+                const stopFn = splendidPiano.start({ 
+                    note: midiNote, 
+                    velocity: velocity 
+                });
+                return { stop: stopFn, isSmplr: true };
+            }
+            
             const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
             const now = audioCtx.currentTime;
             const velocityScale = (velocity / 127);
 
             const gainNode = audioCtx.createGain();
             gainNode.connect(mainMasterGain);
-
             let oscs = [];
 
             if (preset === 'grand') {
@@ -445,8 +657,7 @@
 
                 gainNode.gain.setValueAtTime(0.001, now);
                 gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
-                gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.5);
-                
+                gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.0);
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'bright') {
                 const osc1 = audioCtx.createOscillator();
@@ -465,7 +676,6 @@
                 gainNode.gain.setValueAtTime(0.001, now);
                 gainNode.gain.linearRampToValueAtTime(0.3 * velocityScale, now + 0.01);
                 gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.2);
-
                 osc1.start(now); osc2.start(now);
             } else if (preset === 'warm') {
                 const osc1 = audioCtx.createOscillator();
@@ -480,111 +690,22 @@
                 gainNode.gain.setValueAtTime(0.001, now);
                 gainNode.gain.linearRampToValueAtTime(0.5 * velocityScale, now + 0.04);
                 gainNode.gain.exponentialRampToValueAtTime(0.04, now + 1.8);
-
                 osc1.start(now);
-            } else if (preset === 'electric') {
+            } else {
                 const osc1 = audioCtx.createOscillator();
-                osc1.type = 'sine'; osc1.frequency.value = freq;
-
-                const mod = audioCtx.createOscillator();
-                const modGain = audioCtx.createGain();
-                mod.type = 'sine'; mod.frequency.value = freq * 2;
-                modGain.gain.value = 15;
-
-                mod.connect(modGain); modGain.connect(osc1.frequency);
+                osc1.type = 'triangle';
+                osc1.frequency.value = freq;
                 osc1.connect(gainNode);
-                oscs = [osc1, mod];
+                oscs = [osc1];
 
                 gainNode.gain.setValueAtTime(0.001, now);
                 gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
-                gainNode.gain.exponentialRampToValueAtTime(0.06, now + 1.3);
-
-                osc1.start(now); mod.start(now);
-            } else if (preset === 'upright') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle';
-                osc2.type = 'sine';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq * 1.002;
-                
-                osc1.connect(gainNode);
-                osc2.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.45 * velocityScale, now + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.0);
-
-                osc1.start(now); osc2.start(now);
-            } else if (preset === 'honkytonk') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'triangle';
-                osc2.type = 'triangle';
-                osc1.frequency.value = freq * 0.995;
-                osc2.frequency.value = freq * 1.005;
-                
-                osc1.connect(gainNode);
-                osc2.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.01);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
-
-                osc1.start(now); osc2.start(now);
-            } else if (preset === 'synthpad') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sine';
-                osc2.type = 'sawtooth';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq;
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(freq * 2, now);
-                filter.frequency.linearRampToValueAtTime(freq * 4, now + 0.5);
-
-                osc1.connect(gainNode);
-                osc2.connect(filter);
-                filter.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.35 * velocityScale, now + 0.2);
-                gainNode.gain.exponentialRampToValueAtTime(0.25 * velocityScale, now + 2.5);
-
-                osc1.start(now); osc2.start(now);
-            } else if (preset === 'harpsichord') {
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc2.type = 'square';
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq * 2;
-                
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'highpass';
-                filter.frequency.value = 800;
-
-                osc1.connect(filter);
-                osc2.connect(filter);
-                filter.connect(gainNode);
-                oscs = [osc1, osc2];
-
-                gainNode.gain.setValueAtTime(0.001, now);
-                gainNode.gain.linearRampToValueAtTime(0.25 * velocityScale, now + 0.005);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-
-                osc1.start(now); osc2.start(now);
+                osc1.start(now);
             }
 
-            return { oscs, gainNode };
+            return { oscs, gainNode, isSmplr: false };
         }
 
-        // MIDI
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
         } else {
@@ -617,8 +738,11 @@
             const outputs = Array.from(currentMidiAccess.outputs.values());
             const currentOutId = midiOutputSelect.value;
             midiOutputSelect.innerHTML = '<option value="">(Sin Salida)</option>';
-            outputs.forEach(output => midiOutputSelect.add(new Option(output.name, output.id)));
-            if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
+            
+            if (outputs.length > 0) {
+                outputs.forEach(output => midiOutputSelect.add(new Option(output.name, output.id)));
+                if (outputs.some(o => o.id === currentOutId)) midiOutputSelect.value = currentOutId;
+            }
             connectOutput();
         }
 
@@ -655,28 +779,16 @@
             const data2 = message.data[2];
             const command = statusByte & 0xF0; 
 
-            if (command === 0xB0 && data1 === 64) {
-                sustainActive = (data2 >= 64);
+            if (command === 144) { 
+                if (data2 > 0) noteOn(data1, data2, false);
+                else noteOff(data1, false);
+            } else if (command === 128) { 
+                noteOff(data1, false);
+            } else if (command === 176 && data1 === 64) { 
+                sustainActive = data2 >= 64;
                 if (!sustainActive) releaseSustainedNotes();
-                if (activeMidiOutput) activeMidiOutput.send(message.data);
-                return;
-            }
-
-            if (command === 0x90 && data2 > 0) {
-                noteOn(data1, data2);
-                if (activeMidiOutput) activeMidiOutput.send(message.data);
-            } else if (command === 0x80 || (command === 0x90 && data2 === 0)) {
-                noteOff(data1);
-                if (activeMidiOutput) activeMidiOutput.send(message.data);
             }
         }
-
-        // Desbloquear audio al primer clic en cualquier parte de la página
-        document.addEventListener('click', () => {
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }, { once: true });
     </script>
 </body>
 </html>
