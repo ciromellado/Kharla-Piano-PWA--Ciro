@@ -1,0 +1,24 @@
+{
+  "name": "Kharla Piano PWA",
+  "short_name": "Kharla Piano",
+  "description": "Piano virtual con soporte MIDI, detección de acordes y múltiples instrumentos.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F5DC",
+  "theme_color": "#1e1e1e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-piano-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-piano-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
