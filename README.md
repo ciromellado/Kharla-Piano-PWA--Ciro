@@ -1,4 +1,4 @@
-<img width="400" height="172" alt="kharla-piano ix-300" src="https://github.com/user-attachments/assets/95b71960-9b2d-4d8f-978f-855aba3e6f25" />
+<img width="973" height="620" alt="icon-piano" src="https://github.com/user-attachments/assets/768850bd-abef-450e-83b7-4fd1f668366c" />
 
 <div align="center">
 
