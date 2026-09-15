@@ -1,0 +1,22 @@
+{
+  "name": "Kharla Piano PWA",
+  "short_name": "KharlaPiano",
+  "description": "Sintetizador y Piano PWA profesional con efectos y detección de acordes",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e1e1e",
+  "theme_color": "#1e1e1e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "image/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "image/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

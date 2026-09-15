@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kharla Piano PWA</title>
+    <meta name="theme-color" content="#1e1e1e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Enlace al Manifest de la PWA -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Hoja de estilos externa -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Carga de smplr (SplendidGrandPiano) vía módulo ES -->
+    <script type="module">
+        async function loadSmplr() {
+            try {
+                const mod = await import("https://esm.sh/smplr@0.20.0?target=es2022");
+                window.SplendidGrandPiano = mod.SplendidGrandPiano || mod.default;
+                console.log("✅ smplr cargado. Tipo:", typeof window.SplendidGrandPiano);
+            } catch (e) {
+                console.error("❌ Error cargando smplr:", e);
+            }
+        }
+        loadSmplr();
+    </script>
+</head>
+<body>
+    
+    <h2 style="color: #000000; margin-bottom: 10px;">Kharla Web Solution</h2>
+
+    <div class="vst-container">
+        <div class="title-bar">
+            <h1>🎹 Kharla Piano PWA - Ciro</h1>
+            <div id="status">✅ Listo para tocar</div>
+        </div>
+
+        <div class="chord-display-panel">
+            <div class="chord-info-group">
+                <span class="chord-label">Acorde Detectado</span>
+                <div id="chord-name" class="chord-name">Esperando notas...</div>
+            </div>
+            <div class="chord-info-group">
+                <span class="chord-label">Notas Activas</span>
+                <div id="notes-detected" class="notes-detected">Ninguna</div>
+            </div>
+        </div>
+        
+        <div class="controls-row">
+            <div class="control-group">
+                <label for="midi-input">Entrada MIDI USB:</label>
+                <select id="midi-input">
+                    <option value="">Buscando...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="midi-output">Salida MIDI USB:</label>
+                <select id="midi-output">
+                    <option value="">(Ninguna)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="preset">Tipo de Sonido:</label>
+                <select id="preset">
+                    <optgroup label="Pianos Acústicos">
+                        <option value="splendid">🎹 Splendid Grand Piano (Samples Reales)</option>
+                        <option value="grand">Grand Acoustic (Sintetizado)</option>
+                        <option value="bright">Bright Piano</option>
+                        <option value="warm">Warm Piano</option>
+                    </optgroup>
+                    <optgroup label="Pianos Eléctricos">
+                        <option value="electric">Electric Piano (Rhodes)</option>
+                        <option value="wurlitzer">Wurlitzer (Vintage)</option>
+                    </optgroup>
+                    <optgroup label="Acordeones Colombianos">
+                        <option value="accordion_vallenato">Acordeón Vallenato (Típico)</option>
+                        <option value="accordion_cumbia">Acordeón de Cumbia / Bajos</option>
+                    </optgroup>
+                    <optgroup label="Órganos">
+                        <option value="hammond">Órgano Hammond (Rock/Jazz)</option>
+                        <option value="pipe_organ">Órgano de Tubos (Litúrgico)</option>
+                    </optgroup>
+                    <optgroup label="Cuerdas (Strings)">
+                        <option value="string1">String 1 (Ensemble Cálido)</option>
+                        <option value="string2">String 2 (Brillante / Staccato)</option>
+                    </optgroup>
+                    <optgroup label="Metales y Vientos">
+                        <option value="trumpet">Trompeta (Brass)</option>
+                        <option value="saxophone">Saxofón (Reed)</option>
+                        <option value="trombone">Trombón (Deep Brass)</option>
+                    </optgroup>
+                </select>
+            </div>
+            
+            <!-- Perilla de Volumen Master (5 Niveles) -->
+            <div class="control-group knob-group">
+                <label>Volumen Master</label>
+                <div class="knob" id="knob-volume" data-level="3" title="Clic para girar (1-5)">
+                    <div class="knob-indicator"></div>
+                </div>
+                <span class="knob-value-label" id="val-volume">Nivel 3</span>
+            </div>
+
+            <!-- Perilla de Reverberación (5 Niveles) -->
+            <div class="control-group knob-group">
+                <label>Reverberación</label>
+                <div class="knob" id="knob-reverb" data-level="2" title="Clic para girar (1-5)">
+                    <div class="knob-indicator"></div>
+                </div>
+                <span class="knob-value-label" id="val-reverb">Nivel 2</span>
+            </div>
+
+            <!-- Perilla de Chorus (5 Niveles: 1=OFF, 2-5=Intensidad) -->
+            <div class="control-group knob-group">
+                <label>Efecto Chorus</label>
+                <div class="knob" id="knob-chorus" data-level="1" title="Clic para girar (1-5)">
+                    <div class="knob-indicator"></div>
+                </div>
+                <span class="knob-value-label" id="val-chorus">OFF</span>
+            </div>
+
+            <!-- Perilla de Delay (5 Niveles: 1=OFF, 2-5=Intensidad) -->
+            <div class="control-group knob-group">
+                <label>Efecto Delay</label>
+                <div class="knob" id="knob-delay" data-level="1" title="Clic para girar (1-5)">
+                    <div class="knob-indicator"></div>
+                </div>
+                <span class="knob-value-label" id="val-delay">OFF</span>
+            </div>
+        </div>
+
+        <div class="piano-wrapper" id="piano-wrapper">
+            <div class="piano" id="keyboard"></div>
+        </div>
+    </div>
+
+    <!-- Script principal externo -->
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => {
+                        console.log('✅ Service Worker registrado con éxito:', reg.scope);
+                    })
+                    .catch((err) => {
+                        console.log('❌ Error al registrar el Service Worker:', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
