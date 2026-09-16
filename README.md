@@ -2,77 +2,30 @@
 
 
 <div align="center">
+# 🎹 Web Synth VST / PWA
 
-# 🎹 Kharla Piano PWA
+Una aplicación web progresiva (PWA) de sintetizador y piano virtual construida con **HTML5, CSS3, JavaScript y Web Audio API**. Diseñada para ofrecer una experiencia musical fluida directamente desde el navegador, con soporte para control MIDI físico y efectos DSP avanzados.
 
-### *Tu piano profesional en el navegador*
+## ✨ Características Principales
 
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![Web Audio API](https://img.shields.io/badge/Web_Audio_API-FF6F00?style=for-the-badge&logo=html5&logoColor=white)
-![MIDI](https://img.shields.io/badge/MIDI-6C5CE7?style=for-the-badge&logo=midi&logoColor=white)
-
-*Un sintetizador de piano completo, con samples reales, soporte MIDI y detección de acordes — todo corriendo en tu navegador.*
-
-</div>
+* **Motor de Audio Web (Web Audio API):** Generación de sonido en tiempo real con múltiples osciladores (seno, sierra, triángulo) y envolventes personalizadas.
+* **Soporte de Piano Sampler:** Compatible con librerías externas como *Splendid Grand Piano* para un sonido acústico realista.
+* **Nord Synth Pad Integrado:** Módulo de pads analógicos con selector de tipos de sonido (Warm Pad, Soft Strings, Analog Sweep) y control de volumen independiente.
+* **Efectos DSP Avanzados:**
+  * **Chorus** modulado con LFO.
+  * **Delay** con control de tiempo y retroalimentación (*feedback*).
+  * **Reverb** convolucional envolvente.
+* **Reconocimiento de Acordes en Tiempo Real:** Detecta automáticamente las notas presionadas y muestra el nombre del acorde en pantalla.
+* **Conectividad MIDI:** Soporte completo para conectar teclados y controladores MIDI físicos vía USB/Web MIDI API (tanto entrada como salida).
+* **Diseño Responsivo y Personalizable:** Interfaz optimizada para computadoras y tablets, con un diseño elegante sobre fondo beige claro.
 
 ---
 
-## 🌟 Descripción
+## 🚀 Tecnologías Utilizadas
 
-**Kharla Piano PWA** es un piano virtual desarrollado con tecnologías web modernas que combina síntesis por osciladores con **samples profesionales reales** gracias a la librería `smplr`. Diseñado para músicos, productores y entusiastas que buscan una experiencia musical de alta calidad directamente desde el navegador.
+* **HTML5 & CSS3:** Estructura moderna y diseño visual inspirado en hardware de sintetizadores profesionales.
+* **JavaScript (ES6+):** Lógica del sintetizador, gestión de eventos táctiles/de ratón y manipulación de audio.
+* **Web Audio API:** Síntesis sustractiva, filtros biquad, nodos de ganancia, retardos y convolución para efectos espaciales.
+* **Web MIDI API:** Conexión directa con hardware musical externo.
 
-## ✨ Características
 
-### 🎵 Sonido
-- 🎹 **Pianos con samples reales** (Splendid Grand Piano, Electric Rhodes, Versailles)
-- 🎛️ **Sintetizadores por osciladores** (Grand, Bright, Warm)
-- 🎸 **Pianos eléctricos** (Rhodes, Wurlitzer)
-- 🪗 **Acordeones colombianos** (Vallenato, Cumbia)
-- 🎺 **Órganos, cuerdas, metales y vientos**
-- 🔊 **Control de volumen master** y **reverberación ajustable**
-
-### 🎼 Inteligencia musical
-- 🎯 **Detección de acordes en tiempo real** (más de 40 tipos: Mayor, Menor, 7ª, 9ª, 11ª, 13ª, suspendidos, aumentados, disminuidos...)
-- 📊 Visualización de las notas activas
-- 🔄 Reconocimiento de inversiones
-
-### 🎹 Interfaz
-- ⌨️ **61 teclas** (C2 a C7) con diseño realista
-- 🖱️ Control por **ratón** y **pantalla táctil**
-- 🔌 Soporte completo para **teclados MIDI USB** (entrada y salida)
-- 🎚️ Pedal de **sustain** funcional
-
-### 🌐 Web moderno
-- ⚡ Carga perezosa (*lazy loading*) de samples para arranque rápido
-- 📱 Diseño **responsive** (funciona en PC, tablet y móvil)
-- 🎨 Interfaz oscura elegante inspirada en VSTs profesionales
-
-## 🚀 Demo en vivo
-
-👉 **[Probar el piano ahora](https://tu-usuario.github.io/kharla-piano/)**
-
-*(Reemplaza `tu-usuario` y `kharla-piano` con tu usuario y nombre de repositorio reales)*
-
-## 🛠️ Tecnologías
-
-| Tecnología | Uso |
-|------------|-----|
-| **HTML5** | Estructura del piano y controles |
-| **JavaScript (Vanilla)** | Lógica del sintetizador y MIDI |
-| **Web Audio API** | Motor de audio nativo del navegador |
-| **[smplr](https://github.com/danigb/smplr)** | Samples de piano profesionales |
-| **Web MIDI API** | Comunicación con teclados USB |
-
-## 📦 Instalación y uso
-
-### Opción 1: Usar la versión en línea (recomendado)
-
-Simplemente abre el enlace de la demo arriba. ¡No necesitas instalar nada!
-
-### Opción 2: Ejecutar localmente
-
-1. Clona el repositorio:
-   ```bash
-   git clone https://github.com/tu-usuario/kharla-piano.git
-   cd kharla-piano
