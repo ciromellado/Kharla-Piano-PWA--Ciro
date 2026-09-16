@@ -1,4 +1,5 @@
-<img width="973" height="620" alt="icon-piano" src="https://github.com/user-attachments/assets/768850bd-abef-450e-83b7-4fd1f668366c" />
+<img width="956" height="528" alt="kharlapiano" src="https://github.com/user-attachments/assets/9b2e458c-82e4-4370-a2c0-7d3ec43618bc" />
+
 
 <div align="center">
 
