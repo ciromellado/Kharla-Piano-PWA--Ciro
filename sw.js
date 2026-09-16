@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kharla-piano-v1';
+const CACHE_NAME = 'kharla-piano-v2';
 const assetsToCache = [
   './index.html',
   './style.css',
