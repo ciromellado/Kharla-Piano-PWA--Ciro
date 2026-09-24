@@ -1,6 +1,6 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #F5F2EB; /* Aquí está el beige claro detrás del piano */
+    background-color: #e6e0d4; /* Fondo beige ligeramente más cálido para resaltar el chasis metálico */
     color: #e0e0e0;
     display: flex;
     flex-direction: column;
@@ -13,14 +13,17 @@ body {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
+
 .vst-container {
-    background: #1e1e1e;
+    /* Chasis metálico con degradado de aluminio cepillado oscuro y bordes biselados */
+    background: linear-gradient(145deg, #3a4149, #23282e 60%, #15181c 100%);
+    color: #e0e0e0; 
     padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.7);
-    border: 1px solid #333;
+    border-radius: 14px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255, 255, 255, 0.25), inset 0 -2px 5px rgba(0, 0, 0, 0.6);
+    border: 1px solid #5a6572; 
     max-width: 95%;
-    margin: 20px 0;
+    margin: 20px auto; 
     box-sizing: border-box;
 }
 
@@ -31,26 +34,31 @@ body {
     margin-bottom: 15px;
     flex-wrap: wrap;
     gap: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 10px;
 }
 
 h1 { 
     margin: 0; 
     font-size: 1.3rem; 
-    color: #fff; 
+    color: #ffffff; 
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
 #status {
     font-size: 0.85rem;
-    color: #4caf50;
-    background: rgba(76, 175, 80, 0.1);
+    color: #a3e635;
+    background: rgba(34, 197, 94, 0.15);
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid rgba(76, 175, 80, 0.3);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .chord-display-panel {
-    background: #282828;
-    border: 1px solid #444;
+    /* Pantalla LCD superior estilo hardware digital */
+    background: linear-gradient(to bottom, #090d10, #131a21);
+    border: 1px solid #2a3744;
     border-radius: 8px;
     padding: 12px 20px;
     margin-bottom: 15px;
@@ -59,6 +67,7 @@ h1 {
     align-items: center;
     flex-wrap: wrap;
     gap: 30px;
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(255, 255, 255, 0.05);
 }
 
 .chord-info-group {
@@ -70,7 +79,7 @@ h1 {
 
 .chord-label {
     font-size: 0.75rem;
-    color: #aaa;
+    color: #8a99ad;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -80,27 +89,30 @@ h1 {
     font-weight: bold;
     color: #00bcd4;
     min-height: 35px;
+    text-shadow: 0 0 10px rgba(0, 188, 212, 0.4);
 }
 
 .notes-detected {
     font-size: 0.9rem;
-    color: #bbb;
-    background: #1a1a1a;
-    padding: 6px 10px;
+    color: #d1d5db;
+    background: #0d1318;
+    padding: 6px 12px;
     border-radius: 4px;
-    border: 1px solid #3a3a3a;
+    border: 1px solid #22303c;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
 }
 
 .controls-row {
     display: flex;
     gap: 15px;
     flex-wrap: wrap;
-    background: #252525;
+    background: linear-gradient(to bottom, #252b33, #1c2229);
     padding: 15px;
     border-radius: 8px;
-    border: 1px solid #333;
+    border: 1px solid #36414f;
     align-items: center;
     margin-bottom: 15px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.08), 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .control-group {
@@ -113,23 +125,29 @@ h1 {
 
 label {
     font-size: 0.8rem;
-    color: #bbb;
+    color: #94a3b8;
     font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
 }
 
 select {
-    background: #1a1a1a;
+    background: linear-gradient(to bottom, #1e242b, #11151a);
     color: #fff;
-    border: 1px solid #555;
+    border: 1px solid #3b4754;
     padding: 8px;
     border-radius: 4px;
     outline: none;
     cursor: pointer;
     width: 100%;
     box-sizing: border-box;
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(255,255,255,0.05);
 }
 
-/* Estilos para las perillas giratorias (Knobs de 5 niveles) */
+select:hover {
+    border-color: #00bcd4;
+}
+
+/* Estilos mejorados para las perillas giratorias (Knobs) */
 .knob-group {
     align-items: center;
     text-align: center;
@@ -139,12 +157,12 @@ select {
 .knob {
     width: 44px;
     height: 44px;
-    background: linear-gradient(135deg, #333, #1a1a1a);
-    border: 2px solid #555;
+    background: radial-gradient(circle at 30% 30%, #4a5568, #1a202c 70%);
+    border: 2px solid #64748b;
     border-radius: 50%;
     position: relative;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.3), inset 0 -3px 4px rgba(0,0,0,0.8);
     transition: transform 0.2s ease, border-color 0.2s;
     margin: 4px auto;
 }
@@ -155,7 +173,7 @@ select {
 
 .knob-indicator {
     width: 3px;
-    height: 14px;
+    height: 15px;
     background: #00bcd4;
     position: absolute;
     top: 3px;
@@ -163,11 +181,13 @@ select {
     border-radius: 2px;
     transform-origin: bottom center;
     transition: transform 0.2s ease;
+    box-shadow: 0 0 6px #00bcd4;
 }
 
 .knob-value-label {
     font-size: 0.75rem;
     color: #00bcd4;
+    text-shadow: 0 0 4px rgba(0,188,212,0.3);
 }
 
 .piano-wrapper {
@@ -180,16 +200,18 @@ select {
 .piano {
     display: block;
     position: relative;
-    background: #000;
-    padding: 10px;
-    border-radius: 6px;
+    background: linear-gradient(to bottom, #0a0d10, #000000);
+    padding: 12px 10px;
+    border-radius: 8px;
     height: 200px;
+    box-shadow: inset 0 10px 20px rgba(0,0,0,0.9), 0 8px 16px rgba(0,0,0,0.5);
+    border: 1px solid #222b35;
 }
 
 .key {
     position: absolute;
     cursor: pointer;
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 5px 5px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -198,35 +220,72 @@ select {
     font-size: 0.6rem;
     font-weight: 600;
     box-sizing: border-box;
-    transition: background 0.1s;
+    transition: background 0.1s, box-shadow 0.1s;
 }
 
 .white {
     width: 36px;
     height: 180px;
-    background: #fdfdfd;
-    border: 1px solid #b5b5b5;
-    color: #555;
+    /* Efecto tridimensional en las teclas blancas */
+    background: linear-gradient(to bottom, #eeeeee 0%, #ffffff 70%, #dcdcdc 100%);
+    border: 1px solid #9ca3af;
+    color: #4b5563;
     z-index: 1;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 6px rgba(0,0,0,0.4);
+}
+
+.white:hover {
+    background: linear-gradient(to bottom, #e2e8f0, #f8fafc);
 }
 
 .white.active {
-    background: #00bcd4 !important;
+    background: linear-gradient(to bottom, #00acc1, #00bcd4) !important;
     color: #000 !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4), 0 0 12px #00bcd4 !important;
 }
 
 .black {
     width: 22px;
     height: 110px;
-    background: #222;
-    color: #888;
+    /* Teclas negras con brillo superior simulando acrílico/plástico pulido */
+    background: linear-gradient(to bottom, #374151 0%, #111827 30%, #030712 100%);
+    color: #9ca3af;
     z-index: 3;
     border-radius: 0 0 3px 3px;
     border: 1px solid #000;
     font-size: 0.5rem;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.7);
+}
+
+.black:hover {
+    background: linear-gradient(to bottom, #4b5563, #1f2937);
 }
 
 .black.active {
-    background: #ff5722 !important;
+    background: linear-gradient(to bottom, #f97316, #ea580c) !important;
     color: #fff !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 12px #ff5722 !important;
+}
+
+/* Temas opcionales */
+body.theme-modern-gray {
+    background-color: #e6e0d4;
+}
+
+body.theme-modern-gray .vst-container {
+    background: linear-gradient(145deg, #4a2c2c, #2a1515 60%, #150a0a 100%);
+    border-color: #7f3d3d;
+}
+
+body.theme-modern-gray .controls-row {
+    background: linear-gradient(to bottom, #381f1f, #221212);
+    border-color: #5c2d2d;
+    border-radius: 6px;
+    padding: 10px;
+}
+/* Asegurar visibilidad de las opciones en los menús desplegables */
+select option {
+    background-color: #1a202c; /* Fondo oscuro sólido */
+    color: #ffffff;            /* Texto blanco */
+    padding: 8px;
 }
