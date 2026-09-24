@@ -278,7 +278,7 @@ function createReverbImpulse() {
     convolverNode.buffer = impulse;
 }
 
-// --- CARGA LAZY DE SPLENDID GRAND PIANO ---
+// --- CARGA AUTOMÁTICA DE SPLENDID GRAND PIANO (POR DEFECTO) ---
 async function ensureSplendidLoaded() {
     if (splendidPiano) return splendidPiano;
     if (splendidLoading) {
@@ -324,6 +324,13 @@ async function ensureSplendidLoaded() {
         throw err;
     }
 }
+
+// Forzar la carga inicial de Splendid Grand Piano al arrancar la app
+window.addEventListener('DOMContentLoaded', () => {
+    if (presetSelect.value === 'splendid') {
+        ensureSplendidLoaded().catch(() => {});
+    }
+});
 
 presetSelect.addEventListener('change', async () => {
     if (presetSelect.value === 'splendid') {
@@ -796,4 +803,22 @@ function handleIncomingMidiMessage(message) {
         sustainActive = data2 >= 64;
         if (!sustainActive) releaseSustainedNotes();
     }
+}
+
+// --- SELECTOR DE TEMA / COLOR ---
+const themeSelector = document.getElementById('theme-selector');
+
+if (themeSelector) {
+    themeSelector.addEventListener('change', (e) => {
+        const selectedTheme = e.target.value;
+        
+        // Limpiar clases de temas anteriores en el body
+        document.body.classList.remove('theme-dark-black', 'theme-modern-gray');
+        
+        if (selectedTheme === 'modern-gray') {
+            document.body.classList.add('theme-modern-gray');
+        } else {
+            document.body.classList.add('theme-dark-black');
+        }
+    });
 }
