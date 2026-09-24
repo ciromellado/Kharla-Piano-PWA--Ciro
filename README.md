@@ -1,8 +1,7 @@
-<img width="956" height="528" alt="kharlapiano" src="https://github.com/user-attachments/assets/9b2e458c-82e4-4370-a2c0-7d3ec43618bc" />
-
+<img width="954" height="444" alt="Kharla-Piano-PWA-2" src="https://github.com/user-attachments/assets/afe30b8f-934f-4af7-9522-5ac5cd49abfb" />
 
 <div align="center">
-# 🎹 Web Synth VST / PWA
+# 🎹 Web Synth VST / PWA en dos colores, Negro Clasico y Rojo Elegante
 
 Una aplicación web progresiva (PWA) de sintetizador y piano virtual construida con **HTML5, CSS3, JavaScript y Web Audio API**. Diseñada para ofrecer una experiencia musical fluida directamente desde el navegador, con soporte para control MIDI físico y efectos DSP avanzados.
 
