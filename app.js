@@ -11,8 +11,11 @@ const knobVolume = document.getElementById('knob-volume');
 const valVolume = document.getElementById('val-volume');
 const knobReverb = document.getElementById('knob-reverb');
 const valReverb = document.getElementById('val-reverb');
-const knobChorus = document.getElementById('knob-chorus');
-const valChorus = document.getElementById('val-chorus');
+
+// NUEVO: Referencias para el efecto Decay (reemplaza a Chorus)
+const knobDecay = document.getElementById('knob-decay');
+const valDecay = document.getElementById('val-decay');
+
 const knobDelay = document.getElementById('knob-delay');
 const valDelay = document.getElementById('val-delay');
 
@@ -39,8 +42,7 @@ const noteNames = ["Do ", "Do# ", "Re ", "Re# ", "Mi ", "Fa ", "Fa# ", "Sol ", "
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx, mainMasterGain, convolverNode, wetGain, dryGain;
 
-// Nodos para efectos DSP avanzados (globales)
-let chorusInputNode, chorusOutputNode, chorusLFO, chorusDelay, chorusWetGain;
+// Nodos para efectos DSP avanzados (globales) - Sin Chorus
 let delayNode, delayFeedbackNode, delayWetGain;
 
 // === Nodo de entrada del Splendid y cadenas de efectos por preset ===
@@ -51,7 +53,7 @@ let currentSplendidChain = null;
 // Niveles iniciales (1 a 5)
 let volumeLevel = 3;
 let reverbLevel = 2;
-let chorusLevel = 1;
+let decayLevel = 1;  // 1 = Normal, 5 = Muy Staccato
 let delayLevel = 1;
 
 // Estado del Nord Synth Pad
@@ -64,6 +66,15 @@ let splendidLoading = false;
 // Variable para almacenar el archivo decodificado en memoria y no cargarlo cada vez
 let u20AudioBuffer = null;
 
+// NUEVO: Variable para almacenar el sample del Pad Worship en memoria
+let padWorshipAudioBuffer = null;
+
+// NUEVO: Variable para almacenar el sample de la Trompeta en memoria (C4.mp3)
+let trumpetAudioBuffer = null;
+
+// === Caché única para los samples locales del trombón ===
+const tromboneBuffers = {};
+
 // Función para cargar el C4.mp3 la primera vez que se seleccione o se use
 async function loadU20Sample() {
     if (u20AudioBuffer) return u20AudioBuffer;
@@ -74,6 +85,34 @@ async function loadU20Sample() {
         return u20AudioBuffer;
     } catch (e) {
         console.error("No se pudo cargar el archivo U20/C4.mp3:", e);
+        return null;
+    }
+}
+
+// NUEVO: Función para cargar el C4.wav del Pad la primera vez que se use
+async function loadPadWorshipSample() {
+    if (padWorshipAudioBuffer) return padWorshipAudioBuffer;
+    try {
+        const response = await fetch('pad-c4/C4.wav');
+        const arrayBuffer = await response.arrayBuffer();
+        padWorshipAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        return padWorshipAudioBuffer;
+    } catch (e) {
+        console.error("No se pudo cargar el archivo pad-c4/C4.wav:", e);
+        return null;
+    }
+}
+
+// NUEVO: Función para cargar el C4.mp3 de la trompeta la primera vez que se use
+async function loadTrumpetSample() {
+    if (trumpetAudioBuffer) return trumpetAudioBuffer;
+    try {
+        const response = await fetch('samples-trompetas/C4.mp3');
+        const arrayBuffer = await response.arrayBuffer();
+        trumpetAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        return trumpetAudioBuffer;
+    } catch (e) {
+        console.error("No se pudo cargar el archivo samples-trompetas/C4.mp3:", e);
         return null;
     }
 }
@@ -107,7 +146,11 @@ function playU20Note(midiNote, velocity) {
 
         stopFunction = () => {
             const stopNow = audioCtx.currentTime;
-            const releaseTime = 0.08; // Ligero desvanecimiento al soltar para evitar chasquidos
+            // APLICACIÓN DEL EFECTO DECAY: Acorta el tiempo de release según el nivel
+            const baseRelease = 0.08;
+            const decayFactor = Math.max(0.15, 1 - ((decayLevel - 1) * 0.2));
+            const releaseTime = baseRelease * decayFactor;
+            
             try {
                 gainNode.gain.cancelScheduledValues(stopNow);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, stopNow);
@@ -146,12 +189,85 @@ function playU20Note(midiNote, velocity) {
     };
 }
 
+// NUEVO: Función para reproducir el Pad Worship con pitch y envolvente suave
+function playPadWorshipNote(midiNote, velocity) {
+    let stopFunction = null;
+    let isStoppedBeforeLoad = false;
+
+    loadPadWorshipSample().then(buffer => {
+        if (!buffer || isStoppedBeforeLoad) return;
+
+        const source = audioCtx.createBufferSource();
+        const gainNode = audioCtx.createGain();
+
+        source.buffer = buffer;
+
+        // Ajuste de afinación (pitch) basado en C4 (MIDI 60)
+        const semitones = midiNote - 60;
+        source.playbackRate.value = Math.pow(2, semitones / 12);
+
+        // Control de volumen basado en la velocidad y la perilla del Pad
+        const padVolValues = [0.0, 0.05, 0.1, 0.15, 0.22];
+        const targetGain = padVolValues[padVolumeLevel - 1];
+        const vol = (velocity / 127) * targetGain;
+
+        // Envolvente de ataque suave (Swell) típica de pads de worship
+        const now = audioCtx.currentTime;
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.linearRampToValueAtTime(vol, now + 0.8); // 0.8s de ataque suave
+
+        source.connect(gainNode);
+        gainNode.connect(mainMasterGain);
+
+        source.start(0);
+
+        stopFunction = () => {
+            const stopNow = audioCtx.currentTime;
+            // APLICACIÓN DEL EFECTO DECAY en el release del Pad
+            const baseRelease = 0.8;
+            const decayFactor = Math.max(0.3, 1 - ((decayLevel - 1) * 0.15)); 
+            const releaseTime = baseRelease * decayFactor;
+            
+            try {
+                gainNode.gain.cancelScheduledValues(stopNow);
+                gainNode.gain.setValueAtTime(gainNode.gain.value, stopNow);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, stopNow + releaseTime);
+                
+                setTimeout(() => {
+                    try {
+                        source.stop();
+                        source.disconnect();
+                        gainNode.disconnect();
+                    } catch(e) {}
+                }, releaseTime * 1000 + 50);
+            } catch(e) {
+                try { source.stop(); } catch(err) {}
+            }
+        };
+
+        if (activePadOscillators[midiNote] && activePadOscillators[midiNote].pendingStop) {
+            stopFunction();
+            delete activePadOscillators[midiNote];
+        } else {
+            activePadOscillators[midiNote] = { stop: stopFunction, isSample: true };
+        }
+    });
+
+    return {
+        stop: () => {
+            if (stopFunction) {
+                stopFunction();
+            } else {
+                isStoppedBeforeLoad = true;
+                activePadOscillators[midiNote] = { pendingStop: true };
+            }
+        },
+        isSample: true
+    };
+}
+
 // Presets que procesan el Splendid Grand Piano
 const SPLENDID_DERIVED_PRESETS = ['grand_acoustic', 'bright_piano', 'warm_piano', 'electric_piano', 'honky_tonk'];
-
-// === Caché única para los samples locales de la trompeta y el trombón ===
-const trumpetBuffers = {};
-const tromboneBuffers = {};
 
 function initAudioEngine() {
     if (audioCtx) return;
@@ -173,13 +289,14 @@ function initAudioEngine() {
     createPresetChains();
     switchSplendidChain('grand_acoustic');
     
-    let lastNode = mainMasterGain;
+    // Enrutamiento directo sin Chorus
+    mainMasterGain.connect(dryGain);
+    mainMasterGain.connect(convolverNode);
+    convolverNode.connect(wetGain);
+    dryGain.connect(audioCtx.destination);
+    wetGain.connect(audioCtx.destination);
     
-    chorusInputNode = audioCtx.createGain();
-    chorusOutputNode = audioCtx.createGain();
-    setupChorusNodes();
-    lastNode.connect(chorusInputNode);
-    
+    // Configuración de Delay
     delayNode = audioCtx.createDelay();
     delayNode.delayTime.value = 0.35;
     delayFeedbackNode = audioCtx.createGain();
@@ -187,14 +304,7 @@ function initAudioEngine() {
     delayNode.connect(delayFeedbackNode);
     delayFeedbackNode.connect(delayNode);
     
-    updateChorusValue(chorusLevel);
     updateDelayValue(delayLevel);
-    
-    chorusOutputNode.connect(dryGain);
-    chorusOutputNode.connect(convolverNode);
-    convolverNode.connect(wetGain);
-    dryGain.connect(audioCtx.destination);
-    wetGain.connect(audioCtx.destination);
 }
 
 function createPresetChains() {
@@ -341,32 +451,14 @@ function switchSplendidChain(presetName) {
     }
 }
 
-function setupChorusNodes() {
-    chorusDelay = audioCtx.createDelay();
-    chorusDelay.delayTime.value = 0.025;
-    chorusLFO = audioCtx.createOscillator();
-    chorusLFO.frequency.value = 1.2;
-    const lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 0.004;
-    chorusLFO.connect(lfoGain);
-    lfoGain.connect(chorusDelay.delayTime);
-    chorusLFO.start();
-    chorusWetGain = audioCtx.createGain();
-    chorusWetGain.gain.value = 0.0;
-    chorusInputNode.connect(chorusOutputNode);
-    chorusInputNode.connect(chorusDelay);
-    chorusDelay.connect(chorusWetGain);
-    chorusWetGain.connect(chorusOutputNode);
-}
-
-function updateChorusValue(level) {
-    chorusLevel = level;
-    rotateKnobVisual(knobChorus, level);
-    if (!audioCtx) return;
-    const wetValues = [0.0, 0.2, 0.4, 0.6, 0.8];
-    const targetWet = wetValues[level - 1];
-    if (chorusWetGain) chorusWetGain.gain.setValueAtTime(targetWet, audioCtx.currentTime);
-    valChorus.textContent = level === 1 ? "OFF" : `Nivel ${level - 1}`;
+// NUEVA FUNCIÓN: Control del efecto Decay
+function updateDecayValue(level) {
+    decayLevel = level;
+    rotateKnobVisual(knobDecay, level);
+    
+    // Texto descriptivo para el usuario
+    const decayLabels = ["Normal", "Corto 1", "Corto 2", "Staccato", "Muy Staccato"];
+    valDecay.textContent = decayLabels[level - 1];
 }
 
 function updateDelayValue(level) {
@@ -378,12 +470,12 @@ function updateDelayValue(level) {
         { wet: 0.4, fb: 0.35 }, { wet: 0.6, fb: 0.45 }, { wet: 0.8, fb: 0.55 }
     ];
     const settings = delaySettings[level - 1];
-    if (delayWetGain && delayFeedbackNode && chorusOutputNode) {
+    if (delayWetGain && delayFeedbackNode && mainMasterGain) {
         delayWetGain.gain.setValueAtTime(settings.wet, audioCtx.currentTime);
         delayFeedbackNode.gain.setValueAtTime(settings.fb, audioCtx.currentTime);
-        try { chorusOutputNode.disconnect(delayNode); delayWetGain.disconnect(); } catch(e) {}
+        try { mainMasterGain.disconnect(delayNode); delayWetGain.disconnect(); } catch(e) {}
         if (level > 1) {
-            chorusOutputNode.connect(delayNode);
+            mainMasterGain.connect(delayNode);
             delayNode.connect(delayWetGain);
             delayWetGain.connect(audioCtx.destination);
         }
@@ -432,11 +524,14 @@ knobReverb.addEventListener('click', () => {
     let next = reverbLevel + 1; if (next > 5) next = 1;
     updateReverbValue(next);
 });
-knobChorus.addEventListener('click', () => {
+
+// NUEVO: Evento para la perilla de Decay
+knobDecay.addEventListener('click', () => {
     initAudioEngine();
-    let next = chorusLevel + 1; if (next > 5) next = 1;
-    updateChorusValue(next);
+    let next = decayLevel + 1; if (next > 5) next = 1;
+    updateDecayValue(next);
 });
+
 knobDelay.addEventListener('click', () => {
     initAudioEngine();
     let next = delayLevel + 1; if (next > 5) next = 1;
@@ -460,6 +555,7 @@ btnPadToggle.addEventListener('click', () => {
         btnPadToggle.className = "pad-btn-off";
         btnPadToggle.style.background = "#555";
         btnPadToggle.style.color = "#fff";
+        // Apagar todos los pads activos de inmediato
         Object.keys(activePadOscillators).forEach(note => stopPadInstance(note));
     }
 });
@@ -671,39 +767,39 @@ async function playTromboneSample(midiNote, velocity) {
     };
 }
 
-// Función simulada para trompeta
-async function playTrumpetSample(midiNote, velocity) {
-    if (!audioCtx) return;
+// Función para reproducir la nota de trompeta usando C4.mp3 con pitch-shifting
+function playTrumpetSample(midiNote, velocity) {
+    let stopFunction = null;
+    let isStoppedBeforeLoad = false;
 
-    if (!trumpetBuffers[midiNote]) {
-        try {
-            const response = await fetch(`./samples-trompetas/key_${midiNote}.mp3`);
-            if (!response.ok) return;
-            const arrayBuffer = await response.arrayBuffer();
-            trumpetBuffers[midiNote] = await audioCtx.decodeAudioData(arrayBuffer);
-        } catch (e) {
-            return;
-        }
-    }
+    loadTrumpetSample().then(buffer => {
+        if (!buffer || isStoppedBeforeLoad) return;
 
-    const source = audioCtx.createBufferSource();
-    source.buffer = trumpetBuffers[midiNote];
-  
-    const gainNode = audioCtx.createGain();
-    const now = audioCtx.currentTime;
-    const velocityScale = velocity / 127;
-    
-    gainNode.gain.setValueAtTime(velocityScale, now);
-    
-    source.connect(gainNode);
-    gainNode.connect(mainMasterGain);
-    
-    source.start(0);
-    
-    return { 
-        stop: () => {
+        const source = audioCtx.createBufferSource();
+        const gainNode = audioCtx.createGain();
+
+        source.buffer = buffer;
+
+        // Ajuste de afinación (pitch) basado en C4 (MIDI 60) para que cada tecla suene en su tono correcto
+        const semitones = midiNote - 60;
+        source.playbackRate.value = Math.pow(2, semitones / 12);
+
+        // Control de volumen basado en la velocidad MIDI (0.9 para evitar saturación)
+        const vol = (velocity / 127) * 0.9;
+        gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+
+        source.connect(gainNode);
+        gainNode.connect(mainMasterGain);
+
+        source.start(0);
+
+        stopFunction = () => {
             const stopNow = audioCtx.currentTime;
-            const releaseTime = .2;
+            // APLICACIÓN DEL EFECTO DECAY en samples de viento
+            const baseRelease = 0.2;
+            const decayFactor = Math.max(0.15, 1 - ((decayLevel - 1) * 0.2));
+            const releaseTime = baseRelease * decayFactor;
+            
             try {
                 gainNode.gain.cancelScheduledValues(stopNow);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, stopNow);
@@ -719,7 +815,26 @@ async function playTrumpetSample(midiNote, velocity) {
             } catch(e) {
                 try { source.stop(); } catch(err) {}
             }
-        } 
+        };
+
+        if (activeOscillators[midiNote] && activeOscillators[midiNote].pendingStop) {
+            stopFunction();
+            delete activeOscillators[midiNote];
+        } else {
+            activeOscillators[midiNote] = { stop: stopFunction, isTrumpet: true };
+        }
+    });
+
+    return {
+        stop: () => {
+            if (stopFunction) {
+                stopFunction();
+            } else {
+                isStoppedBeforeLoad = true;
+                activeOscillators[midiNote] = { pendingStop: true };
+            }
+        },
+        isTrumpet: true
     };
 }
 
@@ -738,7 +853,7 @@ function noteOn(note, velocity, fromMouse = false) {
         stopPadInstance(oldestNote);
     }
     if (activeOscillators[note]) stopNoteInstance(note, false);
-    if (activePadOscillators[note]) stopPadInstance(note);
+    if (activePadOscillators[note]) stopPadInstance(note); // Detener pad anterior si se repite la tecla
     
     const currentPreset = presetSelect.value;
     
@@ -746,9 +861,7 @@ function noteOn(note, velocity, fromMouse = false) {
         activeOscillators[note] = playU20Note(note, velocity);
     }
     else if (currentPreset === 'trompeta') {
-        playTrumpetSample(note, velocity).then(instance => {
-            if (instance) activeOscillators[note] = instance;
-        });
+        activeOscillators[note] = playTrumpetSample(note, velocity);
     } 
     else if (currentPreset === 'trombon' || currentPreset.includes('trombon')) {
         playTromboneSample(note, velocity).then(instance => {
@@ -765,7 +878,19 @@ function noteOn(note, velocity, fromMouse = false) {
         activeOscillators[note] = playPianoNote(note, velocity, currentPreset);
     }
     
-    if (padEnabled && currentPreset !== 'u20') activePadOscillators[note] = playPadNote(note, padPresetSelect.value);
+    // UNIFICACIÓN DEL PAD: Se crea UNA SOLA VEZ aquí para TODOS los presets (excepto u20)
+    // Esto evita la duplicidad que causaba que el sonido se quedara "colgado".
+    if (padEnabled && currentPreset !== 'u20') {
+        const selectedPad = padPresetSelect.value;
+        if (selectedPad === 'pad') {
+            // Usa el sample real C4.wav con pitch-shifting
+            activePadOscillators[note] = playPadWorshipNote(note, velocity);
+        } else {
+            // Usa los osciladores sintetizados para warm_pad, soft_strings, etc.
+            activePadOscillators[note] = playPadNote(note, selectedPad);
+        }
+    }
+    
     if (fromMouse && activeMidiOutput) activeMidiOutput.send([144, note, velocity]);
 }
 
@@ -774,11 +899,14 @@ function noteOff(note, fromMouse = false) {
     activeNotesSet.delete(note);
     updateChordRecognition();
     if (!sustainActive && keyElement) keyElement.classList.remove('active');
-    if (sustainActive) sustainedNotes.add(note);
-    else {
+    
+    if (sustainActive) {
+        sustainedNotes.add(note);
+    } else {
         stopNoteInstance(note, true);
-        stopPadInstance(note);
+        stopPadInstance(note); // Detiene limpiamente la única instancia del pad
     }
+    
     if (fromMouse && activeMidiOutput) activeMidiOutput.send([128, note, 0]);
 }
 
@@ -829,11 +957,16 @@ function stopNoteInstance(note, gradualRelease = true) {
     if (activeOscillators[note]) {
         const instance = activeOscillators[note];
         if (typeof instance.stop === 'function') {
-            instance.stop();
+            instance.stop(); // Esto maneja U20, Trompeta y Splendid
         } else if (instance.oscs) {
             const { oscs, gainNode, filter } = instance;
             const now = audioCtx.currentTime;
-            const releaseTime = gradualRelease ? 0.6 : 0.05;
+            
+            // APLICACIÓN DEL EFECTO DECAY: Acorta el tiempo de release según el nivel
+            const baseRelease = gradualRelease ? 0.6 : 0.05;
+            const decayFactor = Math.max(0.15, 1 - ((decayLevel - 1) * 0.2));
+            const releaseTime = baseRelease * decayFactor;
+            
             try {
                 gainNode.gain.cancelScheduledValues(now);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, now);
@@ -853,9 +986,23 @@ function stopNoteInstance(note, gradualRelease = true) {
 
 function stopPadInstance(note) {
     if (activePadOscillators[note]) {
-        const { oscs, gainNode, filter } = activePadOscillators[note];
+        const instance = activePadOscillators[note];
+        
+        // NUEVO: Manejo especial para samples (Pad Worship con C4.wav)
+        if (typeof instance.stop === 'function') {
+            instance.stop(); // Esto maneja el sample C4.wav
+            delete activePadOscillators[note];
+            return;
+        }
+        
+        const { oscs, gainNode, filter } = instance;
         const now = audioCtx.currentTime;
-        const releaseTime = 0.8;
+        
+        // El pad también respeta el decay, pero con un mínimo más largo para que no suene roto
+        const baseRelease = 0.8;
+        const decayFactor = Math.max(0.3, 1 - ((decayLevel - 1) * 0.15)); 
+        const releaseTime = baseRelease * decayFactor;
+        
         try {
             gainNode.gain.cancelScheduledValues(now);
             gainNode.gain.setValueAtTime(gainNode.gain.value, now);
@@ -868,6 +1015,8 @@ function stopPadInstance(note) {
                 if (filter) filter.disconnect();
             } catch (e) {}
         }, (releaseTime * 1000) + 20);
+        
+        // Eliminamos la referencia para liberar memoria y evitar fugas
         delete activePadOscillators[note];
     }
 }
@@ -883,13 +1032,8 @@ function playPianoNote(midiNote, velocity, preset) {
             velocity: velocity
         });
         
-        const padStopObj = padEnabled ? playPadNote(midiNote, padPresetSelect.value) : null;
-
         return { 
-            stop: () => {
-                if (stopFn) stopFn();
-                if (padStopObj && padStopObj.stop) padStopObj.stop();
-            }, 
+            stop: stopFn, 
             isSmplr: true 
         };
     }
@@ -897,6 +1041,10 @@ function playPianoNote(midiNote, velocity, preset) {
     const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
     const now = audioCtx.currentTime;
     const velocityScale = (velocity / 127);
+    
+    // Factor de Decay para la envolvente de los sintetizadores
+    const decayFactor = Math.max(0.2, 1 - ((decayLevel - 1) * 0.2));
+    
     const gainNode = audioCtx.createGain();
     gainNode.connect(mainMasterGain);
     let oscs = [];
@@ -910,7 +1058,7 @@ function playPianoNote(midiNote, velocity, preset) {
         oscs = [osc1, osc2];
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
-        gainNode.gain.exponentialRampToValueAtTime(0.1, now + 1.0);
+        gainNode.gain.exponentialRampToValueAtTime(0.1, now + (1.0 * decayFactor));
         osc1.start(now); osc2.start(now);
     } else if (preset === 'bright') {
         const osc1 = audioCtx.createOscillator();
@@ -920,12 +1068,12 @@ function playPianoNote(midiNote, velocity, preset) {
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(freq * 6, now);
-        filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.8);
+        filter.frequency.exponentialRampToValueAtTime(freq * 1.5, now + (0.8 * decayFactor));
         osc1.connect(filter); osc2.connect(filter); filter.connect(gainNode);
         oscs = [osc1, osc2];
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(0.3 * velocityScale, now + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.05, now + 1.2);
+        gainNode.gain.exponentialRampToValueAtTime(0.05, now + (1.2 * decayFactor));
         osc1.start(now); osc2.start(now);
     } else if (preset === 'warm') {
         const osc1 = audioCtx.createOscillator();
@@ -936,7 +1084,7 @@ function playPianoNote(midiNote, velocity, preset) {
         oscs = [osc1];
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(0.5 * velocityScale, now + 0.04);
-        gainNode.gain.exponentialRampToValueAtTime(0.04, now + 1.8);
+        gainNode.gain.exponentialRampToValueAtTime(0.04, now + (1.8 * decayFactor));
         osc1.start(now);
     } else {
         const osc1 = audioCtx.createOscillator();
@@ -946,6 +1094,7 @@ function playPianoNote(midiNote, velocity, preset) {
         oscs = [osc1];
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(0.4 * velocityScale, now + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.05, now + (0.8 * decayFactor));
         osc1.start(now);
     }
     
@@ -988,6 +1137,7 @@ function playPadNote(midiNote, padType) {
         filter.frequency.setValueAtTime(freq, now);
         filter.frequency.exponentialRampToValueAtTime(freq * 5, now + 0.8);
         osc1.connect(filter);
+        filter.connect(gainNode);
         oscs = [osc1];
     }
     gainNode.gain.setValueAtTime(0.0001, now);
