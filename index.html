@@ -13,7 +13,6 @@
     <!-- Hoja de estilos externa -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Carga de smplr (SplendidGrandPiano) vía módulo ES -->
     <!-- Carga de smplr (SplendidGrandPiano, YamahaC7, DX7) vía módulo ES -->
     <script type="module">
         async function loadSmplr() {
@@ -21,7 +20,7 @@
                 const mod = await import("https://esm.sh/smplr@0.20.0?target=es2022");
                 window.SplendidGrandPiano = mod.SplendidGrandPiano || mod.default;
                 window.YamahaC7 = mod.YamahaC7; // NUEVO
-                window.DX7 = mod.DX7;         // NUEVO
+                window.DX7 = mod.DX7;          // NUEVO
                 console.log("✅ Instrumentos smplr cargados correctamente.");
             } catch (e) {
                 console.error("❌ Error cargando smplr:", e);
@@ -65,52 +64,53 @@
                     <option value="">(Ninguna)</option>
                 </select>
             </div>
+            
             <!-- Selector de Color / Tema del Piano -->
             <div class="control-group">
-            <label for="theme-selector">Color de Interfaz:</label>
-            <select id="theme-selector" style="background: #333; color: #fff; border: 1px solid #555; padding: 6px; border-radius: 4px;">
-        <option value="dark-black">Negro Clásico (Actual)</option>
-        <option value="red">Red Elegante Nord</option>
-    </select>
-</div>
+                <label for="theme-selector">Color de Interfaz:</label>
+                <select id="theme-selector" style="background: #333; color: #fff; border: 1px solid #555; padding: 6px; border-radius: 4px;">
+                    <option value="dark-black">Negro Clásico (Actual)</option>
+                    <option value="red">Red Elegante Nord</option>
+                </select>
+            </div>
             
             <div class="control-group">
                 <label for="preset">Tipo de Sonido:</label>
-               <select id="preset" class="styled-select">
-    <optgroup label="🎹 Pianos de Cola (Splendid Grand Procesado)">
-        <option value="splendid">🎹 Splendid Grand Piano (Puro)</option>
-        <option value="grand_acoustic" selected>🎹 Grand Acoustic (Sala de Concierto)</option>
-        <option value="bright_piano">🎹 Bright Piano (Pop/Brillante)</option>
-        <option value="warm_piano">🎹 Warm Piano (Jazz/Íntimo)</option>
-        <option value="electric_piano">🎹 Electric Piano (Rhodes)</option>
-        <option value="honky_tonk">🎹 Honky-Tonk (Saloon)</option>
-        <option value="U20">Piano U20</option>
-    </optgroup>
-    <optgroup label="🎹 Pianos Sintetizados (Alternativos)">
-        <option value="grand">Grand Acoustic (Sintetizado)</option>
-        <option value="bright">Bright (Sintetizado)</option>
-        <option value="warm">Warm (Sintetizado)</option>
-    </optgroup>
-    <optgroup label="🎛️ Sintetizadores Clásicos">
-        <option value="dx7">🎹 Yamaha DX7 (FM Synth Classic)</option>
-        <option value="wurlitzer">🎹 Wurlitzer (Vintage)</option>
-    </optgroup>
-    <optgroup label="🪗 Acordeones Latinos">
-        <option value="acordeon_vallenato">🪗 Acordeón Vallenato (Típico)</option>
-        <option value="acordeon_cumbia">🪗 Acordeón de Cumbia / Bajos</option>
-    </optgroup>
-    <optgroup label="🎼 Órganos">
-        <option value="hammond">🎼 Órgano Hammond (Rock/Jazz)</option>
-        <option value="tubos">🎼 Órgano de Tubos (Litúrgico)</option>
-    </optgroup>
-    <optgroup label="🎺 Cuerdas y Vientos">
-        <option value="string1">🎻 String 1 (Ensemble Cálido)</option>
-        <option value="string2">🎻 String 2 (Brillante / Staccato)</option>
-        <option value="trompeta">🎺 Trompeta (Brass)</option>
-        <option value="saxofon">🎷 Saxofón (Reed)</option>
-        <option value="trombon">🎺 Trombón</option>
-    </optgroup>
-</select>
+                <select id="preset" class="styled-select">
+                    <optgroup label="🎹 Pianos de Cola (Splendid Grand Procesado)">
+                        <option value="splendid">🎹 Splendid Grand Piano (Puro)</option>
+                        <option value="grand_acoustic" selected>🎹 Grand Acoustic (Sala de Concierto)</option>
+                        <option value="bright_piano">🎹 Bright Piano (Pop/Brillante)</option>
+                        <option value="warm_piano">🎹 Warm Piano (Jazz/Íntimo)</option>
+                        <option value="electric_piano">🎹 Electric Piano (Rhodes)</option>
+                        <option value="honky_tonk">🎹 Honky-Tonk (Saloon)</option>
+                        <option value="U20">Piano U20</option>
+                    </optgroup>
+                    <optgroup label="🎹 Pianos Sintetizados (Alternativos)">
+                        <option value="grand">Grand Acoustic (Sintetizado)</option>
+                        <option value="bright">Bright (Sintetizado)</option>
+                        <option value="warm">Warm (Sintetizado)</option>
+                    </optgroup>
+                    <optgroup label="🎛️ Sintetizadores Clásicos">
+                        <option value="dx7">🎹 Yamaha DX7 (FM Synth Classic)</option>
+                        <option value="wurlitzer">🎹 Wurlitzer (Vintage)</option>
+                    </optgroup>
+                    <optgroup label="🪗 Acordeones Latinos">
+                        <option value="acordeon_vallenato">🪗 Acordeón Vallenato (Típico)</option>
+                        <option value="acordeon_cumbia">🪗 Acordeón de Cumbia / Bajos</option>
+                    </optgroup>
+                    <optgroup label="🎼 Órganos">
+                        <option value="hammond">🎼 Órgano Hammond (Rock/Jazz)</option>
+                        <option value="tubos">🎼 Órgano de Tubos (Litúrgico)</option>
+                    </optgroup>
+                    <optgroup label="🎺 Cuerdas y Vientos">
+                        <option value="string1">🎻 String 1 (Ensemble Cálido)</option>
+                        <option value="string2">🎻 String 2 (Brillante / Staccato)</option>
+                        <option value="trompeta">🎺 Trompeta (Brass)</option>
+                        <option value="saxofon">🎷 Saxofón (Reed)</option>
+                        <option value="trombon">🎺 Trombón</option>
+                    </optgroup>
+                </select>
             </div>
             
             <!-- Perilla de Volumen Master (5 Niveles) -->
@@ -131,13 +131,13 @@
                 <span class="knob-value-label" id="val-reverb">Nivel 2</span>
             </div>
 
-            <!-- Perilla de Chorus (5 Niveles: 1=OFF, 2-5=Intensidad) -->
+            <!-- Perilla de Decay (5 Niveles: 1=Normal, 2-5=Staccato) -->
             <div class="control-group knob-group">
-                <label>Efecto Chorus</label>
-                <div class="knob" id="knob-chorus" data-level="1" title="Clic para girar (1-5)">
+                <label>Efecto Decay</label>
+                <div class="knob" id="knob-decay" data-level="1" title="Clic para girar (1-5)">
                     <div class="knob-indicator"></div>
                 </div>
-                <span class="knob-value-label" id="val-chorus">OFF</span>
+                <span class="knob-value-label" id="val-decay">Normal</span>
             </div>
 
             <!-- Perilla de Delay (5 Niveles: 1=OFF, 2-5=Intensidad) -->
