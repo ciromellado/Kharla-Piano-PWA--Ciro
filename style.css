@@ -292,3 +292,48 @@ background-color: #1a202c;
 color: #ffffff;
 padding: 8px;
 }
+/* Contenedor derecho en la barra de título */
+.header-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Botón de Donación PayPal Estilizado */
+.paypal-donate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #0070ba; /* Azul institucional de PayPal */
+    color: #ffffff;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.paypal-donate-btn:hover {
+    background-color: #005ea6;
+    transform: translateY(-1px);
+}
+
+.paypal-donate-btn svg {
+    fill: #ffc439; /* Pequeño toque amarillo/dorado característico de PayPal en el ícono */
+    stroke: none;
+}
+
+/* Opcional: Si prefieres un botón flotante absoluto en la esquina inferior derecha para móviles */
+@media (max-width: 768px) {
+    .header-right-actions {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+    .paypal-donate-btn {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+}
